@@ -1,4 +1,3 @@
-import type { Channel } from "./channels.js";
 import type { ChannelEvent } from "./protocol.js";
 
 /** Handler invoked with each event delivered on a channel. */
@@ -23,29 +22,46 @@ type PayloadEvent = "close" | "reconnect" | "error";
  * Routes inbound channel frames to channel handlers and connection lifecycle
  * events to lifecycle handlers.
  *
- * Handler exceptions are isolated: per the MVP constraints a throwing consumer
- * handler is reported through the `error` lifecycle event and never retried,
- * and it never breaks delivery to other handlers.
+ * Channel events are delivered to handlers registered for their `channel`
+ * name and to any registered for all events (the `"event"` wildcard).
+ *
+ * Handler exceptions are isolated: a throwing consumer handler is reported
+ * through the `error` lifecycle event and never retried, and it never breaks
+ * delivery to other handlers.
  */
 export class EventDispatcher {
-  private readonly channelHandlers = new Map<Channel, Set<ChannelHandler>>();
+  private readonly channelHandlers = new Map<string, Set<ChannelHandler>>();
+  private readonly allHandlers = new Set<ChannelHandler>();
   private readonly clientHandlers = new Map<
     ClientEvent,
     Set<ClientHandler<ClientEvent>>
   >();
 
-  onChannel(channel: Channel, handler: ChannelHandler): void {
+  onChannel(channel: string, handler: ChannelHandler): void {
     const set = this.channelHandlers.get(channel) ?? new Set();
     set.add(handler);
     this.channelHandlers.set(channel, set);
   }
 
-  offChannel(channel: Channel, handler?: ChannelHandler): void {
+  offChannel(channel: string, handler?: ChannelHandler): void {
     if (!handler) {
       this.channelHandlers.delete(channel);
       return;
     }
     this.channelHandlers.get(channel)?.delete(handler);
+  }
+
+  /** Register a handler for every channel event, regardless of channel. */
+  onAll(handler: ChannelHandler): void {
+    this.allHandlers.add(handler);
+  }
+
+  offAll(handler?: ChannelHandler): void {
+    if (!handler) {
+      this.allHandlers.clear();
+      return;
+    }
+    this.allHandlers.delete(handler);
   }
 
   onClient<E extends ClientEvent>(event: E, handler: ClientHandler<E>): void {
@@ -66,13 +82,17 @@ export class EventDispatcher {
     set?.delete(handler as ClientHandler<ClientEvent>);
   }
 
-  /** Deliver a channel event to every handler registered for its channel. */
+  /** Deliver a channel event to its channel handlers and the `"event"` wildcard. */
   dispatch(event: ChannelEvent): void {
     const handlers = this.channelHandlers.get(event.channel);
-    if (!handlers) {
-      return;
+    if (handlers) {
+      for (const handler of handlers) {
+        this.safely(() => {
+          handler(event);
+        });
+      }
     }
-    for (const handler of handlers) {
+    for (const handler of this.allHandlers) {
       this.safely(() => {
         handler(event);
       });

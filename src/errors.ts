@@ -1,5 +1,4 @@
 /* oxlint-disable max-classes-per-file -- the SDK error hierarchy lives together */
-import type { Channel } from "./channels.js";
 
 /**
  * Base class for every error surfaced by the SDK.
@@ -10,7 +9,7 @@ export class RadionError extends Error {
 
 /**
  * Raised when the SDK is used in a way the connection lifecycle forbids,
- * for example subscribing after {@link RadionWS.close}.
+ * for example subscribing after {@link RealtimeClient.close}.
  */
 export class RadionConnectionError extends RadionError {
   override name = "RadionConnectionError";
@@ -22,14 +21,20 @@ export class RadionConnectionError extends RadionError {
 export class RadionServerError extends RadionError {
   override name = "RadionServerError";
   readonly code?: string | undefined;
-  readonly channel?: Channel | undefined;
+  readonly channel?: string | undefined;
+  readonly id?: string | undefined;
 
   constructor(
     message: string,
-    options: { code?: string | undefined; channel?: Channel | undefined } = {}
+    options: {
+      code?: string | undefined;
+      channel?: string | undefined;
+      id?: string | undefined;
+    } = {}
   ) {
     super(message);
     this.code = options.code;
     this.channel = options.channel;
+    this.id = options.id;
   }
 }
