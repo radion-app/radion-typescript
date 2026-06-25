@@ -13,7 +13,7 @@ import { Radion } from "@radion-app/sdk";
 const radion = new Radion({ apiKey: process.env.RADION_API_KEY });
 await radion.realtime.connect();
 radion.realtime.subscribe({ id: "trades", channel: "trades" });
-radion.realtime.on("trades", (event) => console.log(event.data));
+radion.realtime.onChannel("trades", (event) => console.log(event.data));
 ```
 
 ## Features
@@ -49,7 +49,7 @@ await radion.realtime.connect();
 
 radion.realtime.subscribe({ id: "trades", channel: "trades" });
 
-radion.realtime.on("trades", (event) => {
+radion.realtime.onChannel("trades", (event) => {
   console.log(event.channel, event.data);
 });
 ```
@@ -109,8 +109,8 @@ radion.realtime.subscribe({
   filters: { wallets: ["0x…"] },
 });
 
-// `event` fires for every channel; the event carries id + channel + data.
-radion.realtime.on("event", (e) => console.log(e.id, e.channel, e.data));
+// onAnyChannel fires for every channel; the event carries id + channel + data.
+radion.realtime.onAnyChannel((e) => console.log(e.id, e.channel, e.data));
 ```
 
 ### Channels
@@ -133,14 +133,14 @@ for (const channel of CHANNELS) {
 ### Lifecycle events
 
 ```ts
-radion.realtime.on("open", () => console.log("connected"));
-radion.realtime.on("close", ({ code, reason }) =>
+radion.realtime.onLifecycle("open", () => console.log("connected"));
+radion.realtime.onLifecycle("close", ({ code, reason }) =>
   console.log("closed", code, reason)
 );
-radion.realtime.on("reconnect", ({ attempt, delayMs }) =>
+radion.realtime.onLifecycle("reconnect", ({ attempt, delayMs }) =>
   console.log(`reconnect #${attempt} in ${delayMs}ms`)
 );
-radion.realtime.on("error", (err) => console.error(err));
+radion.realtime.onLifecycle("error", (err) => console.error(err));
 ```
 
 ### Reconnect & subscription restore
@@ -160,7 +160,7 @@ stale, terminated, and reconnected.
 ```ts
 import { RadionConnectionError, RadionServerError } from "@radion-app/sdk";
 
-radion.realtime.on("error", (err) => {
+radion.realtime.onLifecycle("error", (err) => {
   if (err instanceof RadionServerError) {
     console.error("server error", err.code, err.channel);
   } else if (err instanceof RadionConnectionError) {

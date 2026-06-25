@@ -32,10 +32,9 @@ type PayloadEvent = "close" | "reconnect" | "error";
 export class EventDispatcher {
   private readonly channelHandlers = new Map<string, Set<ChannelHandler>>();
   private readonly allHandlers = new Set<ChannelHandler>();
-  private readonly clientHandlers = new Map<
-    ClientEvent,
-    Set<ClientHandler<ClientEvent>>
-  >();
+  private readonly clientHandlers: {
+    [E in ClientEvent]?: Set<ClientHandler<E>>;
+  } = {};
 
   onChannel(channel: string, handler: ChannelHandler): void {
     const set = this.channelHandlers.get(channel) ?? new Set();
@@ -65,21 +64,21 @@ export class EventDispatcher {
   }
 
   onClient<E extends ClientEvent>(event: E, handler: ClientHandler<E>): void {
-    const set = this.clientHandlers.get(event) ?? new Set();
-    // Safe: the slot's payload type matches `handler` by the `E` binding.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    set.add(handler as ClientHandler<ClientEvent>);
-    this.clientHandlers.set(event, set);
+    const existing: Set<ClientHandler<E>> | undefined =
+      this.clientHandlers[event];
+    const set = existing ?? new Set<ClientHandler<E>>();
+    set.add(handler);
+    // Per-event slot write; `Object.assign` avoids the generic-key write
+    // limitation without a type assertion.
+    Object.assign(this.clientHandlers, { [event]: set });
   }
 
   offClient<E extends ClientEvent>(event: E, handler?: ClientHandler<E>): void {
     if (!handler) {
-      this.clientHandlers.delete(event);
+      this.clientHandlers[event]?.clear();
       return;
     }
-    const set = this.clientHandlers.get(event);
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    set?.delete(handler as ClientHandler<ClientEvent>);
+    this.clientHandlers[event]?.delete(handler);
   }
 
   /** Deliver a channel event to its channel handlers and the `"event"` wildcard. */
@@ -100,11 +99,11 @@ export class EventDispatcher {
   }
 
   /** Emit the parameterless `open` lifecycle event. */
-  emit(event: "open"): void;
+  emit(event: "open", payload?: undefined): void;
   /** Emit a lifecycle event that carries a payload. */
   emit<E extends PayloadEvent>(event: E, payload: ClientEventMap[E]): void;
-  emit(event: ClientEvent, payload?: ClientEventMap[ClientEvent]): void {
-    const handlers = this.clientHandlers.get(event);
+  emit<E extends ClientEvent>(event: E, payload: ClientEventMap[E]): void {
+    const handlers = this.clientHandlers[event];
     if (!handlers) {
       return;
     }

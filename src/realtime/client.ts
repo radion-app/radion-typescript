@@ -31,10 +31,16 @@ import { ReconnectManager } from "./reconnect-manager.js";
 import type { ReconnectOptions } from "./reconnect-manager.js";
 import { SubscriptionManager } from "./subscription-manager.js";
 
-const CLIENT_EVENTS = new Set<string>(["open", "close", "reconnect", "error"]);
-
-const isClientEvent = (value: string): value is ClientEvent =>
-  CLIENT_EVENTS.has(value);
+/**
+ * Bridge a per-channel typed handler to the wide {@link ChannelHandler} used
+ * for storage. The public typed overloads guarantee each handler matches its
+ * channel's payload, and a channel only ever delivers its own payload — so this
+ * narrowing is sound. It is the single type assertion the realtime layer cannot
+ * express structurally (per-channel `data` typing erased to `ChannelEvent`).
+ */
+const asChannelHandler = (handler: (event: never) => void): ChannelHandler =>
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  handler as ChannelHandler;
 
 /** Normalise a `ws` data frame into a UTF-8 string. */
 const decodeData = (data: RawData): string => {
@@ -94,7 +100,7 @@ type ConnectionState = "idle" | "connecting" | "open" | "closed";
  * const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY! });
  * await client.connect();
  * client.subscribe({ id: "trades", channel: "trades" });
- * client.on("trades", (event) => console.log(event.id, event.data));
+ * client.onChannel("trades", (event) => console.log(event.id, event.data));
  */
 export class RealtimeClient {
   private readonly apiKey: string;
@@ -189,48 +195,58 @@ export class RealtimeClient {
   }
 
   /** Register a handler for a connection lifecycle event. */
-  on<E extends ClientEvent>(event: E, handler: ClientHandler<E>): this;
-  /** Register a handler for events on a channel, narrowing `event.data`. */
-  on<C extends Channel>(
-    channel: C,
-    handler: (event: ChannelEventFor<C>) => void
-  ): this;
-  /** Register a handler for a channel (or `"event"` for all events). */
-  on(channel: string, handler: ChannelHandler): this;
-  on(event: string, handler: (payload: never) => void): this {
-    // Casts are safe by the public overloads: `event` selects the slot whose
-    // payload type the caller's `handler` was declared against.
-    if (isClientEvent(event)) {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.onClient(event, handler as ClientHandler<ClientEvent>);
-    } else if (event === "event") {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.onAll(handler as ChannelHandler);
-    } else {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.onChannel(event, handler as ChannelHandler);
-    }
+  onLifecycle<E extends ClientEvent>(
+    event: E,
+    handler: ClientHandler<E>
+  ): this {
+    this.dispatcher.onClient(event, handler);
     return this;
   }
 
-  /** Remove a previously registered handler (or all for the channel/event). */
-  off<E extends ClientEvent>(event: E, handler?: ClientHandler<E>): this;
-  off<C extends Channel>(
+  /** Remove a lifecycle handler (or all handlers for `event`). */
+  offLifecycle<E extends ClientEvent>(
+    event: E,
+    handler?: ClientHandler<E>
+  ): this {
+    this.dispatcher.offClient(event, handler);
+    return this;
+  }
+
+  /** Register a handler for events on a channel, narrowing `event.data`. */
+  onChannel<C extends Channel>(
+    channel: C,
+    handler: (event: ChannelEventFor<C>) => void
+  ): this;
+  /** Register a handler for any channel by name (e.g. a `mempool.` channel). */
+  onChannel(channel: string, handler: ChannelHandler): this;
+  onChannel(channel: string, handler: (event: never) => void): this {
+    this.dispatcher.onChannel(channel, asChannelHandler(handler));
+    return this;
+  }
+
+  /** Remove a channel handler (or all handlers for `channel`). */
+  offChannel<C extends Channel>(
     channel: C,
     handler?: (event: ChannelEventFor<C>) => void
   ): this;
-  off(channel: string, handler?: ChannelHandler): this;
-  off(event: string, handler?: (payload: never) => void): this {
-    if (isClientEvent(event)) {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.offClient(event, handler as ClientHandler<ClientEvent>);
-    } else if (event === "event") {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.offAll(handler as ChannelHandler);
-    } else {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      this.dispatcher.offChannel(event, handler as ChannelHandler);
-    }
+  offChannel(channel: string, handler?: ChannelHandler): this;
+  offChannel(channel: string, handler?: (event: never) => void): this {
+    this.dispatcher.offChannel(
+      channel,
+      handler ? asChannelHandler(handler) : undefined
+    );
+    return this;
+  }
+
+  /** Register a handler for every channel event, regardless of channel. */
+  onAnyChannel(handler: ChannelHandler): this {
+    this.dispatcher.onAll(handler);
+    return this;
+  }
+
+  /** Remove a wildcard handler (or all of them). */
+  offAnyChannel(handler?: ChannelHandler): this {
+    this.dispatcher.offAll(handler);
     return this;
   }
 
