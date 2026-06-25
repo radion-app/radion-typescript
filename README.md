@@ -1,26 +1,24 @@
-# @radion/sdk
+# @radion-app/sdk
 
-[![npm version](https://img.shields.io/npm/v/@radion/sdk.svg)](https://www.npmjs.com/package/@radion/sdk)
-[![license](https://img.shields.io/npm/l/@radion/sdk.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@radion-app/sdk.svg)](https://www.npmjs.com/package/@radion-app/sdk)
+[![license](https://img.shields.io/npm/l/@radion-app/sdk.svg)](./LICENSE)
 
 Official, fully-typed SDK for the [Radion](https://radion.app) platform.
 
-One client, one API key, every Radion product surface. The realtime
-(WebSocket) API is available today under `radion.realtime`.
+One client, one API key, every Radion product surface.
 
 ```ts
-import { Radion } from "@radion/sdk";
+import { Radion } from "@radion-app/sdk";
 
 const radion = new Radion({ apiKey: process.env.RADION_API_KEY });
 await radion.realtime.connect();
-radion.realtime.subscribe("trades");
+radion.realtime.subscribe({ id: "trades", channel: "trades" });
 radion.realtime.on("trades", (event) => console.log(event.data));
 ```
 
 ## Features
 
 - **Unified client** — `new Radion({ apiKey })` is the single entry point for every product surface
-- **Realtime today** — `radion.realtime` is the full WebSocket client
 - **Auto-reconnect** — exponential backoff with jitter; stops on graceful shutdown
 - **Subscription restore** — active channels are re-subscribed after every reconnect
 - **Heartbeats** — ping/pong keep-alive that detects stale connections and reconnects
@@ -34,14 +32,14 @@ radion.realtime.on("trades", (event) => console.log(event.data));
 ## Install
 
 ```bash
-pnpm add @radion/sdk
-# or: npm install @radion/sdk / yarn add @radion/sdk
+pnpm add @radion-app/sdk
+# or: npm install @radion-app/sdk / yarn add @radion-app/sdk
 ```
 
 ## Quick start
 
 ```ts
-import { Radion } from "@radion/sdk";
+import { Radion } from "@radion-app/sdk";
 
 const radion = new Radion({
   apiKey: process.env.RADION_API_KEY,
@@ -49,7 +47,7 @@ const radion = new Radion({
 
 await radion.realtime.connect();
 
-radion.realtime.subscribe("trades");
+radion.realtime.subscribe({ id: "trades", channel: "trades" });
 
 radion.realtime.on("trades", (event) => {
   console.log(event.channel, event.data);
@@ -71,30 +69,49 @@ new Radion(options);
 | `wsUrl`    | `string`          | `wss://api.radion.app/ws` | Override the realtime endpoint.                       |
 | `realtime` | `RealtimeOptions` | enabled                   | Reconnect / heartbeat tuning for the realtime client. |
 
-`realtime` tuning: `{ reconnect?: ReconnectOptions | false, heartbeat?: HeartbeatOptions | false }`
-`ReconnectOptions`: `{ initialDelayMs?, maxDelayMs?, factor?, jitter? }`
-`HeartbeatOptions`: `{ intervalMs?, timeoutMs? }`
-
 ### Realtime client
 
 `radion.realtime` is a `RealtimeClient`. It can also be imported and
 constructed standalone:
 
 ```ts
-import { RealtimeClient } from "@radion/sdk";
+import { RealtimeClient } from "@radion-app/sdk";
 
 const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 ```
 
-| Method                       | Description                                                  |
-| ---------------------------- | ------------------------------------------------------------ |
-| `connect()`                  | Open the connection. Resolves once established.              |
-| `subscribe(channel)`         | Subscribe to a channel. Replayed automatically on reconnect. |
-| `unsubscribe(channel)`       | Unsubscribe from a channel.                                  |
-| `on(channel \| event, fn)`   | Register a channel or lifecycle handler. Chainable.          |
-| `off(channel \| event, fn?)` | Remove a handler (or all for that name). Chainable.          |
-| `close(code?, reason?)`      | Graceful shutdown. Stops reconnect attempts.                 |
-| `connected`                  | Getter — whether the socket is currently open.               |
+| Method                       | Description                                                        |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `connect()`                  | Open the connection. Resolves once established.                    |
+| `subscribe(subscription)`    | Subscribe with `{ id, channel, filters? }`. Replayed on reconnect. |
+| `unsubscribe(id)`            | Unsubscribe by subscription id.                                    |
+| `on("event" \| channel, fn)` | Register a handler for all events / one channel. Chainable.        |
+| `on(lifecycleEvent, fn)`     | Register a lifecycle handler (`open`/`close`/`reconnect`/`error`). |
+| `off(target, fn?)`           | Remove a handler (or all for that target). Chainable.              |
+| `close(code?, reason?)`      | Graceful shutdown. Stops reconnect attempts.                       |
+| `connected`                  | Getter — whether the socket is currently open.                     |
+
+### Subscriptions & filters
+
+A subscription is `{ id, channel, filters? }`. The `id` is your own string,
+echoed back on every event so you can tell subscriptions apart; `channel` may
+carry a `mempool.` prefix. Some channels require a filter:
+
+```ts
+radion.realtime.subscribe({
+  id: "whales",
+  channel: "large_trades",
+  filters: { min_usd: 10_000 },
+});
+radion.realtime.subscribe({
+  id: "watch",
+  channel: "wallets",
+  filters: { wallets: ["0x…"] },
+});
+
+// `event` fires for every channel; the event carries id + channel + data.
+radion.realtime.on("event", (e) => console.log(e.id, e.channel, e.data));
+```
 
 ### Channels
 
@@ -106,10 +123,10 @@ combos · prices · wallets · markets · large_trades
 Available at runtime as `CHANNELS` and at the type level as `Channel`.
 
 ```ts
-import { CHANNELS, type Channel } from "@radion/sdk";
+import { CHANNELS, type Channel } from "@radion-app/sdk";
 
 for (const channel of CHANNELS) {
-  radion.realtime.subscribe(channel);
+  radion.realtime.subscribe({ id: channel, channel });
 }
 ```
 
@@ -141,7 +158,7 @@ stale, terminated, and reconnected.
 ### Error handling
 
 ```ts
-import { RadionConnectionError, RadionServerError } from "@radion/sdk";
+import { RadionConnectionError, RadionServerError } from "@radion-app/sdk";
 
 radion.realtime.on("error", (err) => {
   if (err instanceof RadionServerError) {
