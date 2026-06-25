@@ -25,6 +25,7 @@ export {
   type AnyChannelPayload,
   type AnyConfirmedPayload,
   type ChannelPayloadMap,
+  type ConfirmedChannelPayloadMap,
   COLLATERAL_EVENT_TYPES,
   collateralPayloadSchema,
   type CollateralPayload,

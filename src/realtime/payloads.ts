@@ -238,11 +238,11 @@ export const channelDataSchema = z.union([
 export type AnyChannelPayload = z.infer<typeof channelDataSchema>;
 
 /**
- * Maps each channel to the payload its event frames carry. Filtered views
- * (`wallets`, `markets`, `large_trades`) and the `global` firehose re-emit the
- * typed channels' payloads.
+ * Maps each confirmed channel to the payload its event frames carry. Filtered
+ * views (`wallets`, `markets`, `large_trades`) and the `global` firehose
+ * re-emit the typed channels' payloads.
  */
-export interface ChannelPayloadMap {
+export interface ConfirmedChannelPayloadMap {
   global: AnyConfirmedPayload;
   trades: TradesPayload;
   oracle: OraclePayload;
@@ -255,3 +255,12 @@ export interface ChannelPayloadMap {
   markets: AnyConfirmedPayload;
   large_trades: TradesPayload;
 }
+
+/**
+ * Maps every subscribable channel to its payload. Each `mempool.`-prefixed
+ * companion carries the same payload shape as its confirmed channel, so the
+ * mempool keys are derived from {@link ConfirmedChannelPayloadMap}.
+ */
+export type ChannelPayloadMap = ConfirmedChannelPayloadMap & {
+  [C in keyof ConfirmedChannelPayloadMap as `mempool.${C & string}`]: ConfirmedChannelPayloadMap[C];
+};

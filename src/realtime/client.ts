@@ -7,7 +7,7 @@ import {
   RadionError,
   RadionServerError,
 } from "../errors.js";
-import type { Channel } from "./channels.js";
+import type { SubscribableChannel } from "./channels.js";
 import { EventDispatcher } from "./event-dispatcher.js";
 import type {
   ChannelHandler,
@@ -212,12 +212,16 @@ export class RealtimeClient {
     return this;
   }
 
-  /** Register a handler for events on a channel, narrowing `event.data`. */
-  onChannel<C extends Channel>(
+  /**
+   * Register a handler for events on a channel, narrowing `event.data`.
+   * Covers confirmed channels and their `mempool.` companions, which share the
+   * confirmed channel's payload shape.
+   */
+  onChannel<C extends SubscribableChannel>(
     channel: C,
     handler: (event: ChannelEventFor<C>) => void
   ): this;
-  /** Register a handler for any channel by name (e.g. a `mempool.` channel). */
+  /** Register a handler for any channel by name. */
   onChannel(channel: string, handler: ChannelHandler): this;
   onChannel(channel: string, handler: (event: never) => void): this {
     this.dispatcher.onChannel(channel, asChannelHandler(handler));
@@ -225,7 +229,7 @@ export class RealtimeClient {
   }
 
   /** Remove a channel handler (or all handlers for `channel`). */
-  offChannel<C extends Channel>(
+  offChannel<C extends SubscribableChannel>(
     channel: C,
     handler?: (event: ChannelEventFor<C>) => void
   ): this;
