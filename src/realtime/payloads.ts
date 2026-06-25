@@ -216,8 +216,26 @@ export const anyConfirmedPayloadSchema = z.union([
 ]);
 export type AnyConfirmedPayload = z.infer<typeof anyConfirmedPayloadSchema>;
 
-/** Any payload deliverable on an event frame, including price ticks. */
-export type AnyChannelPayload = AnyConfirmedPayload | PricesPayload;
+/**
+ * Schema for the `data` of any event frame: a typed channel payload, a price
+ * tick, or — for forward compatibility with event types added server-side
+ * before the SDK enumerates them — any other JSON object. The final member
+ * means validation never drops a structurally valid event, while letting
+ * `parseInboundFrame` return fully-typed frames without an assertion.
+ */
+export const channelDataSchema = z.union([
+  tradesPayloadSchema,
+  oraclePayloadSchema,
+  lifecyclePayloadSchema,
+  activityPayloadSchema,
+  collateralPayloadSchema,
+  combosPayloadSchema,
+  pricesPayloadSchema,
+  z.record(z.string(), z.unknown()),
+]);
+
+/** Any payload deliverable on an event frame. */
+export type AnyChannelPayload = z.infer<typeof channelDataSchema>;
 
 /**
  * Maps each channel to the payload its event frames carry. Filtered views

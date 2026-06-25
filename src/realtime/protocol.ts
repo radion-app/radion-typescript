@@ -6,6 +6,7 @@ import {
   isChannel,
   isMempoolChannel,
 } from "./channels.js";
+import { channelDataSchema } from "./payloads.js";
 import type { AnyChannelPayload, ChannelPayloadMap } from "./payloads.js";
 
 /**
@@ -103,18 +104,9 @@ export interface ErrorFrame {
   skipped?: number;
 }
 
-/**
- * Any frame the client may receive from the server.
- */
-export type InboundFrame =
-  | ChannelEvent
-  | SubscriptionAck
-  | PongFrame
-  | ErrorFrame;
-
 const eventFrameSchema = z.object({
   channel: z.string(),
-  data: z.unknown(),
+  data: channelDataSchema,
   id: z.string(),
   type: z.literal("event"),
 });
@@ -145,6 +137,12 @@ export const inboundFrameSchema = z.union([
 ]);
 
 /**
+ * Any frame the client may receive from the server. Inferred from
+ * {@link inboundFrameSchema} so a validated frame is returned fully typed.
+ */
+export type InboundFrame = z.infer<typeof inboundFrameSchema>;
+
+/**
  * Parse and validate a raw text frame into a typed {@link InboundFrame}.
  *
  * Returns `null` when the payload is not valid JSON or does not match a known
@@ -163,10 +161,7 @@ export const parseInboundFrame = (raw: string): InboundFrame | null => {
   if (!result.success) {
     return null;
   }
-
-  // Envelope validated above; `data` typing is the channel's contract.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return result.data as InboundFrame;
+  return result.data;
 };
 
 /**
