@@ -80,16 +80,19 @@ import { RealtimeClient } from "@radion-app/sdk";
 const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 ```
 
-| Method                       | Description                                                        |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `connect()`                  | Open the connection. Resolves once established.                    |
-| `subscribe(subscription)`    | Subscribe with `{ id, channel, filters? }`. Replayed on reconnect. |
-| `unsubscribe(id)`            | Unsubscribe by subscription id.                                    |
-| `on("event" \| channel, fn)` | Register a handler for all events / one channel. Chainable.        |
-| `on(lifecycleEvent, fn)`     | Register a lifecycle handler (`open`/`close`/`reconnect`/`error`). |
-| `off(target, fn?)`           | Remove a handler (or all for that target). Chainable.              |
-| `close(code?, reason?)`      | Graceful shutdown. Stops reconnect attempts.                       |
-| `connected`                  | Getter — whether the socket is currently open.                     |
+| Method                     | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `connect()`                | Open the connection. Resolves once established.                    |
+| `subscribe(subscription)`  | Subscribe with `{ id, channel, filters? }`. Replayed on reconnect. |
+| `unsubscribe(id)`          | Unsubscribe by subscription id.                                    |
+| `onChannel(channel, fn)`   | Handle events on one channel; `event.data` is narrowed. Chainable. |
+| `onAnyChannel(fn)`         | Handle every channel event (id + channel + data). Chainable.       |
+| `onLifecycle(event, fn)`   | Handle a lifecycle event (`open`/`close`/`reconnect`/`error`).     |
+| `offChannel(channel, fn?)` | Remove a channel handler (or all for the channel). Chainable.      |
+| `offAnyChannel(fn?)`       | Remove an all-channel handler (or all). Chainable.                 |
+| `offLifecycle(event, fn?)` | Remove a lifecycle handler (or all for the event). Chainable.      |
+| `close(code?, reason?)`    | Graceful shutdown. Stops reconnect attempts.                       |
+| `connected`                | Getter — whether the socket is currently open.                     |
 
 ### Subscriptions & filters
 
