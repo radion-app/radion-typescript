@@ -2,7 +2,12 @@ import { WebSocket } from "ws";
 import type { RawData } from "ws";
 
 import { DEFAULT_WS_URL } from "../config.js";
-import { RadionConnectionError, RadionServerError } from "../errors.js";
+import {
+  RadionConnectionError,
+  RadionError,
+  RadionServerError,
+} from "../errors.js";
+import type { Channel } from "./channels.js";
 import { EventDispatcher } from "./event-dispatcher.js";
 import type {
   ChannelHandler,
@@ -11,8 +16,17 @@ import type {
 } from "./event-dispatcher.js";
 import { Heartbeat } from "./heartbeat.js";
 import type { HeartbeatOptions } from "./heartbeat.js";
-import { parseInboundFrame, serializeOutboundFrame } from "./protocol.js";
-import type { InboundFrame, OutboundFrame, Subscription } from "./protocol.js";
+import {
+  parseInboundFrame,
+  serializeOutboundFrame,
+  validateSubscriptionFilters,
+} from "./protocol.js";
+import type {
+  ChannelEventFor,
+  InboundFrame,
+  OutboundFrame,
+  Subscription,
+} from "./protocol.js";
 import { ReconnectManager } from "./reconnect-manager.js";
 import type { ReconnectOptions } from "./reconnect-manager.js";
 import { SubscriptionManager } from "./subscription-manager.js";
@@ -155,6 +169,10 @@ export class RealtimeClient {
   /** Subscribe to a channel. Resends automatically after a reconnect. */
   subscribe(subscription: Subscription): void {
     this.assertUsable();
+    const filterError = validateSubscriptionFilters(subscription);
+    if (filterError !== null) {
+      throw new RadionError(filterError);
+    }
     const isNew = this.subscriptions.add(subscription);
     if (isNew && this.connected) {
       this.send(subscribeFrame(subscription));
@@ -172,7 +190,12 @@ export class RealtimeClient {
 
   /** Register a handler for a connection lifecycle event. */
   on<E extends ClientEvent>(event: E, handler: ClientHandler<E>): this;
-  /** Register a handler for events on a channel (or `"event"` for all). */
+  /** Register a handler for events on a channel, narrowing `event.data`. */
+  on<C extends Channel>(
+    channel: C,
+    handler: (event: ChannelEventFor<C>) => void
+  ): this;
+  /** Register a handler for a channel (or `"event"` for all events). */
   on(channel: string, handler: ChannelHandler): this;
   on(event: string, handler: (payload: never) => void): this {
     // Casts are safe by the public overloads: `event` selects the slot whose
@@ -192,6 +215,10 @@ export class RealtimeClient {
 
   /** Remove a previously registered handler (or all for the channel/event). */
   off<E extends ClientEvent>(event: E, handler?: ClientHandler<E>): this;
+  off<C extends Channel>(
+    channel: C,
+    handler?: (event: ChannelEventFor<C>) => void
+  ): this;
   off(channel: string, handler?: ChannelHandler): this;
   off(event: string, handler?: (payload: never) => void): this {
     if (isClientEvent(event)) {

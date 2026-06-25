@@ -1,6 +1,6 @@
 {
   "name": "@radion-app/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official SDK for the Radion platform",
   "keywords": [
     "polymarket",
@@ -43,12 +43,13 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/ws": "^8.5.13",
-    "lefthook": "^1.10.0",
+    "lefthook": "^2.1.9",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
     "oxlint-tsgolint": "^0.23.0",
