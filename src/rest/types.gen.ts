@@ -200,6 +200,15 @@ export type ListKeysResponse = {
     trialEndsAt?: string | null;
 };
 
+export type LookupResults = {
+    markets: Array<Market>;
+    traders: Array<TraderPnl>;
+};
+
+export type LookupResultsResponse = {
+    data: LookupResults;
+};
+
 export type Market = {
     conditionId: string;
     lastPrice: string;
@@ -268,6 +277,15 @@ export type Position = {
     txHash: string;
 };
 
+export type ProfileHit = {
+    address?: string | null;
+    bio?: string | null;
+    id: string;
+    image?: string | null;
+    name?: string | null;
+    pseudonym?: string | null;
+};
+
 export type Resolution = {
     conditionId: string;
     payoutNumerators: Array<number>;
@@ -276,12 +294,20 @@ export type Resolution = {
 };
 
 export type SearchResults = {
-    markets: Array<Market>;
-    traders: Array<TraderPnl>;
+    events: Array<Event>;
+    profiles: Array<ProfileHit>;
+    topics: Array<Topic>;
 };
 
 export type SearchResultsResponse = {
     data: SearchResults;
+};
+
+export type Topic = {
+    eventCount?: number | null;
+    id?: string | null;
+    label?: string | null;
+    slug?: string | null;
 };
 
 export type Trade = {
@@ -562,6 +588,43 @@ export type GetEventResponses = {
 
 export type GetEventResponse = GetEventResponses[keyof GetEventResponses];
 
+export type LookupData = {
+    body?: never;
+    path?: never;
+    query: {
+        q: string;
+        type?: string;
+    };
+    url: '/v1/polymarket/lookup';
+};
+
+export type LookupErrors = {
+    /**
+     * Invalid request parameters.
+     */
+    400: ErrorResponse;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ErrorResponse;
+    /**
+     * Rate limit exceeded.
+     */
+    429: ErrorResponse;
+    /**
+     * Unexpected server error.
+     */
+    500: ErrorResponse;
+};
+
+export type LookupError = LookupErrors[keyof LookupErrors];
+
+export type LookupResponses = {
+    200: LookupResultsResponse;
+};
+
+export type LookupResponse = LookupResponses[keyof LookupResponses];
+
 export type ListMarketsData = {
     body?: never;
     path?: never;
@@ -824,7 +887,7 @@ export type GetOrderBookData = {
     body?: never;
     path?: never;
     query: {
-        position_id: string;
+        token_id: string;
     };
     url: '/v1/polymarket/order-book';
 };
@@ -862,6 +925,7 @@ export type SearchData = {
     query: {
         q: string;
         type?: string;
+        limit?: number;
     };
     url: '/v1/polymarket/search';
 };

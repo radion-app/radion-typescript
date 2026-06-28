@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, GetApiKeyInfoData, GetApiKeyInfoErrors, GetApiKeyInfoResponses, GetEventData, GetEventErrors, GetEventResponses, GetGlobalPnlData, GetGlobalPnlErrors, GetGlobalPnlResponses, GetHealthStatusData, GetHealthStatusResponses, GetMarketBySlugData, GetMarketBySlugErrors, GetMarketBySlugResponses, GetMarketCandlestickData, GetMarketCandlestickErrors, GetMarketCandlestickResponses, GetMarketData, GetMarketErrors, GetMarketResponses, GetOrderBookData, GetOrderBookErrors, GetOrderBookResponses, GetTraderPnlData, GetTraderPnlErrors, GetTraderPnlResponses, ListEventsData, ListEventsErrors, ListEventsResponses, ListMarketHoldersData, ListMarketHoldersErrors, ListMarketHoldersResponses, ListMarketsData, ListMarketsErrors, ListMarketsResponses, ListMarketTradesData, ListMarketTradesErrors, ListMarketTradesResponses, ListTraderPositionsData, ListTraderPositionsErrors, ListTraderPositionsResponses, ListTraderTradesData, ListTraderTradesErrors, ListTraderTradesResponses, ListUserKeysData, ListUserKeysErrors, ListUserKeysResponses, SearchData, SearchErrors, SearchResponses } from './types.gen';
+import type { CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, GetApiKeyInfoData, GetApiKeyInfoErrors, GetApiKeyInfoResponses, GetEventData, GetEventErrors, GetEventResponses, GetGlobalPnlData, GetGlobalPnlErrors, GetGlobalPnlResponses, GetHealthStatusData, GetHealthStatusResponses, GetMarketBySlugData, GetMarketBySlugErrors, GetMarketBySlugResponses, GetMarketCandlestickData, GetMarketCandlestickErrors, GetMarketCandlestickResponses, GetMarketData, GetMarketErrors, GetMarketResponses, GetOrderBookData, GetOrderBookErrors, GetOrderBookResponses, GetTraderPnlData, GetTraderPnlErrors, GetTraderPnlResponses, ListEventsData, ListEventsErrors, ListEventsResponses, ListMarketHoldersData, ListMarketHoldersErrors, ListMarketHoldersResponses, ListMarketsData, ListMarketsErrors, ListMarketsResponses, ListMarketTradesData, ListMarketTradesErrors, ListMarketTradesResponses, ListTraderPositionsData, ListTraderPositionsErrors, ListTraderPositionsResponses, ListTraderTradesData, ListTraderTradesErrors, ListTraderTradesResponses, ListUserKeysData, ListUserKeysErrors, ListUserKeysResponses, LookupData, LookupErrors, LookupResponses, SearchData, SearchErrors, SearchResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -106,6 +106,19 @@ export class Events {
     }
 }
 
+export class Lookup {
+    /**
+     * Look up a market or trader by id
+     */
+    public static lookup<ThrowOnError extends boolean = false>(options: Options<LookupData, ThrowOnError>): RequestResult<LookupResponses, LookupErrors, ThrowOnError> {
+        return (options.client ?? client).get<LookupResponses, LookupErrors, ThrowOnError>({
+            security: [{ name: 'X-API-Key', type: 'apiKey' }],
+            url: '/v1/polymarket/lookup',
+            ...options
+        });
+    }
+}
+
 export class Markets {
     /**
      * List markets by volume
@@ -189,7 +202,7 @@ export class OrderBook {
 
 export class Search {
     /**
-     * Search markets and traders
+     * Search markets, topics, and profiles
      */
     public static search<ThrowOnError extends boolean = false>(options: Options<SearchData, ThrowOnError>): RequestResult<SearchResponses, SearchErrors, ThrowOnError> {
         return (options.client ?? client).get<SearchResponses, SearchErrors, ThrowOnError>({
