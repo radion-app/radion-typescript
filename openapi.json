@@ -1,0 +1,2396 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Radion REST API",
+    "description": "Official REST API for Radion prediction market intelligence layer.",
+    "license": {
+      "name": ""
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.radion.app",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/auth/keys": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List the current user's API keys",
+        "operationId": "list_user_keys",
+        "responses": {
+          "200": {
+            "description": "The user's API keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKeysResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        },
+        "security": [
+          {
+            "ClerkBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create an API key",
+        "operationId": "create_api_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "API key created. The raw key is shown once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKeyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictResponse"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntityResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        },
+        "security": [
+          {
+            "ClerkBearer": []
+          }
+        ]
+      }
+    },
+    "/auth/keys/{keyLabel}": {
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Delete an API key",
+        "operationId": "delete_api_key",
+        "parameters": [
+          {
+            "name": "keyLabel",
+            "in": "path",
+            "description": "The key label of the key to delete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteKeyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        },
+        "security": [
+          {
+            "ClerkBearer": []
+          }
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get current API key info",
+        "operationId": "get_api_key_info",
+        "responses": {
+          "200": {
+            "description": "Metadata for the currently authenticated API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetApiKeyInfoResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        },
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Get health status",
+        "operationId": "get_health_status",
+        "responses": {
+          "200": {
+            "description": "Service is healthy and ready to accept traffic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/polymarket/events": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "List events",
+        "operationId": "list_events",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/events/{identifier}": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "Get an event by id or slug",
+        "operationId": "get_event",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "description": "Event id (numeric) or slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/lookup": {
+      "get": {
+        "tags": ["Lookup"],
+        "summary": "Look up a market or trader by id",
+        "operationId": "lookup",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupResultsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "List markets by volume",
+        "operationId": "list_markets",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Market"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets/slug/{market_slug}": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "Get a market by slug",
+        "operationId": "get_market_by_slug",
+        "parameters": [
+          {
+            "name": "market_slug",
+            "in": "path",
+            "description": "Market slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketBySlugResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets/{condition_id}": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "Get a market by condition id",
+        "operationId": "get_market",
+        "parameters": [
+          {
+            "name": "condition_id",
+            "in": "path",
+            "description": "Market condition id (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets/{condition_id}/candlestick": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "OHLC candlesticks for a market",
+        "operationId": "get_market_candlestick",
+        "parameters": [
+          {
+            "name": "condition_id",
+            "in": "path",
+            "description": "Market condition id (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resolution",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandlestickResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets/{condition_id}/holders": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "Current holders for a market",
+        "operationId": "list_market_holders",
+        "parameters": [
+          {
+            "name": "condition_id",
+            "in": "path",
+            "description": "Market condition id (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_shares",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Holder"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/markets/{condition_id}/trades": {
+      "get": {
+        "tags": ["Markets"],
+        "summary": "List trades for a market",
+        "operationId": "list_market_trades",
+        "parameters": [
+          {
+            "name": "condition_id",
+            "in": "path",
+            "description": "Market condition id (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "trader",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_usd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "max_usd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Trade"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/order-book": {
+      "get": {
+        "tags": ["Order Book"],
+        "summary": "Order book midpoint for a position",
+        "operationId": "get_order_book",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderBookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/search": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Search markets, topics, and profiles",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResultsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/traders/global-pnl": {
+      "get": {
+        "tags": ["Traders"],
+        "summary": "PnL leaderboard",
+        "operationId": "get_global_pnl",
+        "parameters": [
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_TraderPnl"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/traders/{trader_id}/pnl": {
+      "get": {
+        "tags": ["Traders"],
+        "summary": "Trader PnL summary",
+        "operationId": "get_trader_pnl",
+        "parameters": [
+          {
+            "name": "trader_id",
+            "in": "path",
+            "description": "Trader address (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraderPnlResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/traders/{trader_id}/positions": {
+      "get": {
+        "tags": ["Traders"],
+        "summary": "List position events for a trader",
+        "operationId": "list_trader_positions",
+        "parameters": [
+          {
+            "name": "trader_id",
+            "in": "path",
+            "description": "Trader address (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Position"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    },
+    "/v1/polymarket/traders/{trader_id}/trades": {
+      "get": {
+        "tags": ["Traders"],
+        "summary": "List trades for a trader",
+        "operationId": "list_trader_trades",
+        "parameters": [
+          {
+            "name": "trader_id",
+            "in": "path",
+            "description": "Trader address (0x hex)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_Trade"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiKeyInfo": {
+        "type": "object",
+        "required": [
+          "keyLabel",
+          "plan",
+          "callCount",
+          "createdAt",
+          "monthlyUsage",
+          "requestsPerSecond"
+        ],
+        "properties": {
+          "callCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "keyLabel": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "monthlyUsage": {
+            "$ref": "#/components/schemas/MonthlyUsage"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ApiKeyPlan"
+          },
+          "requestsPerSecond": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ApiKeyPlan": {
+        "type": "string",
+        "enum": ["free", "starter", "pro", "enterprise"]
+      },
+      "Candle": {
+        "type": "object",
+        "required": ["t", "o", "h", "l", "c", "v"],
+        "properties": {
+          "c": {
+            "type": "string"
+          },
+          "h": {
+            "type": "string"
+          },
+          "l": {
+            "type": "string"
+          },
+          "o": {
+            "type": "string"
+          },
+          "t": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "v": {
+            "type": "string"
+          }
+        }
+      },
+      "CandlestickResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            }
+          }
+        }
+      },
+      "CreateKeyData": {
+        "type": "object",
+        "required": ["keyLabel", "rawKey"],
+        "properties": {
+          "keyLabel": {
+            "type": "string"
+          },
+          "rawKey": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateKeyRequest": {
+        "type": "object",
+        "required": ["keyLabel"],
+        "properties": {
+          "keyLabel": {
+            "type": "string",
+            "example": "production_read"
+          }
+        }
+      },
+      "CreateKeyResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreateKeyData"
+          }
+        }
+      },
+      "CursorPage_Event": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "marketCount"],
+              "properties": {
+                "category": {
+                  "type": ["string", "null"]
+                },
+                "closed": {
+                  "type": ["boolean", "null"]
+                },
+                "description": {
+                  "type": ["string", "null"]
+                },
+                "endDate": {
+                  "type": ["integer", "null"],
+                  "format": "int64"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "liquidity": {
+                  "type": ["number", "null"],
+                  "format": "double"
+                },
+                "marketCount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "openInterest": {
+                  "type": ["number", "null"],
+                  "format": "double"
+                },
+                "slug": {
+                  "type": ["string", "null"]
+                },
+                "startDate": {
+                  "type": ["integer", "null"],
+                  "format": "int64"
+                },
+                "title": {
+                  "type": ["string", "null"]
+                },
+                "volume": {
+                  "type": ["number", "null"],
+                  "format": "double"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CursorPage_Holder": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["address", "positionId", "shares"],
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "positionId": {
+                  "type": "string"
+                },
+                "shares": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CursorPage_Market": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "conditionId",
+                "totalVolume",
+                "tradeCount",
+                "lastPrice",
+                "openInterest",
+                "updatedBlock"
+              ],
+              "properties": {
+                "conditionId": {
+                  "type": "string"
+                },
+                "lastPrice": {
+                  "type": "string"
+                },
+                "lastTradeTs": {
+                  "type": ["string", "null"]
+                },
+                "openInterest": {
+                  "type": "string"
+                },
+                "totalVolume": {
+                  "type": "string"
+                },
+                "tradeCount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "updatedBlock": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CursorPage_Position": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "blockNumber",
+                "logIndex",
+                "txHash",
+                "ts",
+                "conditionId",
+                "stakeholder",
+                "kind",
+                "amount"
+              ],
+              "properties": {
+                "amount": {
+                  "type": "string"
+                },
+                "blockNumber": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "collateralToken": {
+                  "type": ["string", "null"]
+                },
+                "conditionId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "logIndex": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "parentCollectionId": {
+                  "type": ["string", "null"]
+                },
+                "positionId": {
+                  "type": ["string", "null"]
+                },
+                "stakeholder": {
+                  "type": "string"
+                },
+                "ts": {
+                  "type": "string"
+                },
+                "txHash": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CursorPage_Trade": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "chainId",
+                "blockNumber",
+                "logIndex",
+                "txHash",
+                "ts",
+                "conditionId",
+                "positionId",
+                "maker",
+                "taker",
+                "side",
+                "outcomeIndex",
+                "price",
+                "size",
+                "usd",
+                "fee"
+              ],
+              "properties": {
+                "blockNumber": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "builderCode": {
+                  "type": ["string", "null"]
+                },
+                "chainId": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "conditionId": {
+                  "type": "string"
+                },
+                "fee": {
+                  "type": "string"
+                },
+                "logIndex": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "maker": {
+                  "type": "string"
+                },
+                "outcomeIndex": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "positionId": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "taker": {
+                  "type": "string"
+                },
+                "ts": {
+                  "type": "string"
+                },
+                "txHash": {
+                  "type": "string"
+                },
+                "usd": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "CursorPage_TraderPnl": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "address",
+                "realizedPnl",
+                "unrealizedPnl",
+                "volume",
+                "tradeCount",
+                "winCount",
+                "updatedBlock"
+              ],
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "realizedPnl": {
+                  "type": "string"
+                },
+                "tradeCount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "unrealizedPnl": {
+                  "type": "string"
+                },
+                "updatedBlock": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "volume": {
+                  "type": "string"
+                },
+                "winCount": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "DeleteKeyResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["type", "status", "title", "detail", "request_id"],
+        "properties": {
+          "detail": {
+            "type": "string",
+            "example": "Resource not found"
+          },
+          "request_id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "example": 404,
+            "minimum": 0
+          },
+          "title": {
+            "type": "string",
+            "example": "Not Found"
+          },
+          "type": {
+            "type": "string",
+            "example": "about:blank"
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "required": ["id", "marketCount"],
+        "properties": {
+          "category": {
+            "type": ["string", "null"]
+          },
+          "closed": {
+            "type": ["boolean", "null"]
+          },
+          "description": {
+            "type": ["string", "null"]
+          },
+          "endDate": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "liquidity": {
+            "type": ["number", "null"],
+            "format": "double"
+          },
+          "marketCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "openInterest": {
+            "type": ["number", "null"],
+            "format": "double"
+          },
+          "slug": {
+            "type": ["string", "null"]
+          },
+          "startDate": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          },
+          "title": {
+            "type": ["string", "null"]
+          },
+          "volume": {
+            "type": ["number", "null"],
+            "format": "double"
+          }
+        }
+      },
+      "EventResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Event"
+          }
+        }
+      },
+      "GetApiKeyInfoResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApiKeyInfo"
+          }
+        },
+        "example": {
+          "data": {
+            "callCount": 42,
+            "createdAt": "2026-04-01T12:00:00Z",
+            "expiresAt": null,
+            "keyLabel": "production_read",
+            "lastUsedAt": "2026-04-09T15:20:00Z",
+            "monthlyUsage": {
+              "limit": 3000,
+              "resetsAt": "2026-07-01T00:00:00Z",
+              "used": 120
+            },
+            "plan": "starter",
+            "requestsPerSecond": 10
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthStatus"
+          }
+        },
+        "example": {
+          "data": {
+            "at": "2026-05-20T12:00:00Z",
+            "status": "ok"
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "required": ["status", "at"],
+        "properties": {
+          "at": {
+            "type": "string",
+            "example": "2026-05-20T12:00:00Z"
+          },
+          "status": {
+            "type": "string",
+            "example": "ok"
+          }
+        },
+        "example": {
+          "at": "2026-05-20T12:00:00Z",
+          "status": "ok"
+        }
+      },
+      "Holder": {
+        "type": "object",
+        "required": ["address", "positionId", "shares"],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "positionId": {
+            "type": "string"
+          },
+          "shares": {
+            "type": "string"
+          }
+        }
+      },
+      "KeySummary": {
+        "type": "object",
+        "required": ["keyLabel", "plan", "createdAt"],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "keyLabel": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ApiKeyPlan"
+          }
+        }
+      },
+      "ListKeysResponse": {
+        "type": "object",
+        "required": ["data", "plan", "monthlyUsage"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeySummary"
+            }
+          },
+          "monthlyUsage": {
+            "$ref": "#/components/schemas/MonthlyUsage"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ApiKeyPlan"
+          },
+          "trialEndsAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "LookupResults": {
+        "type": "object",
+        "required": ["markets", "traders"],
+        "properties": {
+          "markets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Market"
+            }
+          },
+          "traders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraderPnl"
+            }
+          }
+        }
+      },
+      "LookupResultsResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LookupResults"
+          }
+        }
+      },
+      "Market": {
+        "type": "object",
+        "required": [
+          "conditionId",
+          "totalVolume",
+          "tradeCount",
+          "lastPrice",
+          "openInterest",
+          "updatedBlock"
+        ],
+        "properties": {
+          "conditionId": {
+            "type": "string"
+          },
+          "lastPrice": {
+            "type": "string"
+          },
+          "lastTradeTs": {
+            "type": ["string", "null"]
+          },
+          "openInterest": {
+            "type": "string"
+          },
+          "totalVolume": {
+            "type": "string"
+          },
+          "tradeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedBlock": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "MarketBySlug": {
+        "type": "object",
+        "required": ["id", "status", "outcomes"],
+        "properties": {
+          "description": {
+            "type": ["string", "null"]
+          },
+          "endDate": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Outcome"
+            }
+          },
+          "question": {
+            "type": ["string", "null"]
+          },
+          "slug": {
+            "type": ["string", "null"]
+          },
+          "startDate": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "MarketBySlugResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketBySlug"
+          }
+        }
+      },
+      "MarketDetail": {
+        "type": "object",
+        "required": ["market"],
+        "properties": {
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Resolution"
+              }
+            ]
+          }
+        }
+      },
+      "MarketDetailResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MarketDetail"
+          }
+        }
+      },
+      "MonthlyUsage": {
+        "type": "object",
+        "required": ["used", "resetsAt"],
+        "properties": {
+          "limit": {
+            "type": ["integer", "null"],
+            "format": "int64"
+          },
+          "resetsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OrderBook": {
+        "type": "object",
+        "required": ["tokenId", "midpoint"],
+        "properties": {
+          "midpoint": {
+            "type": "number",
+            "format": "double"
+          },
+          "tokenId": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderBookResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderBook"
+          }
+        }
+      },
+      "Outcome": {
+        "type": "object",
+        "required": ["label"],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "tokenId": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "Position": {
+        "type": "object",
+        "required": [
+          "blockNumber",
+          "logIndex",
+          "txHash",
+          "ts",
+          "conditionId",
+          "stakeholder",
+          "kind",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "blockNumber": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "collateralToken": {
+            "type": ["string", "null"]
+          },
+          "conditionId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "logIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "parentCollectionId": {
+            "type": ["string", "null"]
+          },
+          "positionId": {
+            "type": ["string", "null"]
+          },
+          "stakeholder": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "txHash": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileHit": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "address": {
+            "type": ["string", "null"]
+          },
+          "bio": {
+            "type": ["string", "null"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "image": {
+            "type": ["string", "null"]
+          },
+          "name": {
+            "type": ["string", "null"]
+          },
+          "pseudonym": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "Resolution": {
+        "type": "object",
+        "required": [
+          "conditionId",
+          "payoutNumerators",
+          "resolvedTs",
+          "resolutionSource"
+        ],
+        "properties": {
+          "conditionId": {
+            "type": "string"
+          },
+          "payoutNumerators": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "resolutionSource": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resolvedTs": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchResults": {
+        "type": "object",
+        "required": ["events", "topics", "profiles"],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileHit"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Topic"
+            }
+          }
+        }
+      },
+      "SearchResultsResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SearchResults"
+          }
+        }
+      },
+      "Topic": {
+        "type": "object",
+        "properties": {
+          "eventCount": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "id": {
+            "type": ["string", "null"]
+          },
+          "label": {
+            "type": ["string", "null"]
+          },
+          "slug": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "Trade": {
+        "type": "object",
+        "required": [
+          "chainId",
+          "blockNumber",
+          "logIndex",
+          "txHash",
+          "ts",
+          "conditionId",
+          "positionId",
+          "maker",
+          "taker",
+          "side",
+          "outcomeIndex",
+          "price",
+          "size",
+          "usd",
+          "fee"
+        ],
+        "properties": {
+          "blockNumber": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "builderCode": {
+            "type": ["string", "null"]
+          },
+          "chainId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conditionId": {
+            "type": "string"
+          },
+          "fee": {
+            "type": "string"
+          },
+          "logIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maker": {
+            "type": "string"
+          },
+          "outcomeIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "positionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "side": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "string"
+          },
+          "taker": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "txHash": {
+            "type": "string"
+          },
+          "usd": {
+            "type": "string"
+          }
+        }
+      },
+      "TraderPnl": {
+        "type": "object",
+        "required": [
+          "address",
+          "realizedPnl",
+          "unrealizedPnl",
+          "volume",
+          "tradeCount",
+          "winCount",
+          "updatedBlock"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "realizedPnl": {
+            "type": "string"
+          },
+          "tradeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unrealizedPnl": {
+            "type": "string"
+          },
+          "updatedBlock": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "volume": {
+            "type": "string"
+          },
+          "winCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TraderPnlResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraderPnl"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequestResponse": {
+        "description": "Invalid request parameters.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Invalid query parameters",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 400,
+              "title": "Bad Request",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "ConflictResponse": {
+        "description": "Resource already exists.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Resource already exists",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 409,
+              "title": "Conflict",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "ForbiddenResponse": {
+        "description": "Access denied.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Access denied",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 403,
+              "title": "Forbidden",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "InternalServerErrorResponse": {
+        "description": "Unexpected server error.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Unexpected error",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 500,
+              "title": "Internal Server Error",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "NotFoundResponse": {
+        "description": "Resource not found.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Resource not found",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 404,
+              "title": "Not Found",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "TooManyRequestsResponse": {
+        "description": "Rate limit exceeded.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Rate limit exceeded",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 429,
+              "title": "Too Many Requests",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "UnauthorizedResponse": {
+        "description": "Missing or invalid API key.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Invalid API key",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 401,
+              "title": "Unauthorized",
+              "type": "about:blank"
+            }
+          }
+        }
+      },
+      "UnprocessableEntityResponse": {
+        "description": "Validation failed.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "detail": "Validation failed",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "status": 422,
+              "title": "Unprocessable Entity",
+              "type": "about:blank"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "ClerkBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {},
+    {
+      "ApiKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Check whether the REST API is up and running."
+    },
+    {
+      "name": "Authentication",
+      "description": "Inspect the currently authenticated API key."
+    },
+    {
+      "name": "Markets",
+      "description": "On-chain markets, trades, candlesticks, and holders."
+    },
+    {
+      "name": "Events",
+      "description": "Events metadata."
+    },
+    {
+      "name": "Traders",
+      "description": "On-chain trader trades, PnL, positions, and leaderboard."
+    },
+    {
+      "name": "Lookup",
+      "description": "Exact lookup of a market or trader by id."
+    },
+    {
+      "name": "Search",
+      "description": "Fuzzy search across markets, topics, and profiles."
+    },
+    {
+      "name": "Order Book",
+      "description": "CLOB order book midpoint passthrough."
+    }
+  ]
+}
