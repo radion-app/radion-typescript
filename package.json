@@ -35,9 +35,9 @@
   },
   "scripts": {
     "build": "tsdown",
-    "check": "ultracite check",
+    "check": "ultracite check --type-aware --type-check",
     "dev": "tsdown --watch",
-    "fix": "ultracite fix",
+    "fix": "ultracite fix --type-aware --type-check",
     "typecheck": "tsc --noEmit",
     "prepare": "lefthook install",
     "prepublishOnly": "pnpm run build"
