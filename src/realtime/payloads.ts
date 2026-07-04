@@ -1,10 +1,9 @@
 /**
  * Typed event payloads for every Radion realtime channel.
  *
- * Each channel emits a `data` object discriminated by a snake_case `type` field
- * (the `prices` channel is the exception — a flat tick with no `type`). The
- * schemas below enumerate every `data.type` value a channel can carry and type
- * the fields documented for that channel's payload.
+ * Each channel emits a `data` object discriminated by a snake_case `type` field.
+ * The schemas below enumerate every `data.type` value a channel can carry and
+ * type the fields documented for that channel's payload.
  *
  * Provenance: field schemas mirror the published channel docs
  * (`/websockets/channels/*`), which document one representative payload per
@@ -20,17 +19,22 @@ import { z } from "zod";
 /** Hex-encoded string (`0x…`). On-chain amounts stay strings to be bigint-safe. */
 const hex = z.string();
 
-// --- trades ----------------------------------------------------------------
+// --- trading ---------------------------------------------------------------
 
-export const TRADE_EVENT_TYPES = [
+export const TRADING_EVENT_TYPES = [
   "order_filled_v1",
   "order_filled_v2",
   "orders_matched_v1",
   "orders_matched_v2",
+  "order_cancelled",
+  "order_preapproved",
+  "order_preapproval_invalidated",
+  "trading_paused",
+  "trading_unpaused",
 ] as const;
 
-/** Confirmed fill / order-match payload from the exchange contracts. */
-export const tradesPayloadSchema = z.looseObject({
+/** Confirmed fill / order-match / order-lifecycle payload from the exchange. */
+export const tradingPayloadSchema = z.looseObject({
   builder: hex.optional(),
   fee: hex.optional(),
   maker: hex.optional(),
@@ -42,9 +46,23 @@ export const tradesPayloadSchema = z.looseObject({
   taker: hex.optional(),
   takerAmountFilled: hex.optional(),
   tokenId: hex.optional(),
-  type: z.enum(TRADE_EVENT_TYPES),
+  type: z.enum(TRADING_EVENT_TYPES),
 });
-export type TradesPayload = z.infer<typeof tradesPayloadSchema>;
+export type TradingPayload = z.infer<typeof tradingPayloadSchema>;
+
+// --- fees ------------------------------------------------------------------
+
+export const FEES_EVENT_TYPES = ["fee_charged_v1", "fee_charged_v2"] as const;
+
+/** Exchange fee charged payload. */
+export const feesPayloadSchema = z.looseObject({
+  amount: hex.optional(),
+  id: hex.optional(),
+  receiver: hex.optional(),
+  token: hex.optional(),
+  type: z.enum(FEES_EVENT_TYPES),
+});
+export type FeesPayload = z.infer<typeof feesPayloadSchema>;
 
 // --- oracle ----------------------------------------------------------------
 
@@ -67,7 +85,7 @@ export const ORACLE_EVENT_TYPES = [
   "uma_optimistic_question_flagged_for_admin_resolution",
 ] as const;
 
-/** UMA oracle lifecycle payload. */
+/** UMA question mechanism payload. */
 export const oraclePayloadSchema = z.looseObject({
   payouts: z.array(hex).optional(),
   questionID: hex.optional(),
@@ -77,20 +95,41 @@ export const oraclePayloadSchema = z.looseObject({
 });
 export type OraclePayload = z.infer<typeof oraclePayloadSchema>;
 
+// --- resolution ------------------------------------------------------------
+
+export const RESOLUTION_EVENT_TYPES = [
+  "condition_resolution",
+  "condition_resolved",
+  "outcome_reported",
+  "result_reported",
+  "resolution_paused",
+  "resolution_unpaused",
+  "resolver_paused",
+  "resolver_unpaused",
+] as const;
+
+/** Settlement outcome payload. */
+export const resolutionPayloadSchema = z.looseObject({
+  conditionId: hex.optional(),
+  payouts: z.array(hex).optional(),
+  questionId: hex.optional(),
+  type: z.enum(RESOLUTION_EVENT_TYPES),
+});
+export type ResolutionPayload = z.infer<typeof resolutionPayloadSchema>;
+
 // --- lifecycle -------------------------------------------------------------
 
 export const LIFECYCLE_EVENT_TYPES = [
   "market_prepared",
-  "neg_risk_question_prepared",
-  "outcome_reported",
   "event_prepared",
-  "condition_resolved",
   "condition_preparation",
-  "condition_resolution",
   "token_registered",
+  "neg_risk_question_prepared",
+  "combinatorial_condition_prepared",
+  "migration_condition_registered",
 ] as const;
 
-/** Market / condition lifecycle payload. */
+/** Market creation / preparation payload. */
 export const lifecyclePayloadSchema = z.looseObject({
   conditionId: hex.optional(),
   oracle: hex.optional(),
@@ -100,87 +139,58 @@ export const lifecyclePayloadSchema = z.looseObject({
 });
 export type LifecyclePayload = z.infer<typeof lifecyclePayloadSchema>;
 
-// --- activity --------------------------------------------------------------
+// --- positions -------------------------------------------------------------
 
-export const ACTIVITY_EVENT_TYPES = [
-  "redemption",
-  "binary_redemption",
-  "neg_risk_redemption",
-  "positions_redeemed",
-  "collateral_position_split",
-  "collateral_positions_merged",
-  "collateral_positions_converted",
-  "neg_risk_positions_converted",
+export const POSITIONS_EVENT_TYPES = [
   "ctf_position_split",
   "ctf_positions_merge",
   "ctf_payout_redemption",
+  "collateral_position_split",
+  "collateral_positions_merged",
+  "positions_redeemed",
 ] as const;
 
-/** Redemption / split / merge / conversion payload. */
-export const activityPayloadSchema = z.looseObject({
+/** Plain CTF base-layer split / merge / redemption payload. */
+export const positionsPayloadSchema = z.looseObject({
   amounts: z.array(hex).optional(),
   conditionId: hex.optional(),
   initiator: hex.optional(),
   payout: hex.optional(),
-  type: z.enum(ACTIVITY_EVENT_TYPES),
+  type: z.enum(POSITIONS_EVENT_TYPES),
 });
-export type ActivityPayload = z.infer<typeof activityPayloadSchema>;
-
-// --- collateral ------------------------------------------------------------
-
-export const COLLATERAL_EVENT_TYPES = [
-  "transfer",
-  "approval",
-  "wrapped",
-  "unwrapped",
-] as const;
-
-/** ERC-20 collateral payload. */
-export const collateralPayloadSchema = z.looseObject({
-  amount: hex.optional(),
-  from: hex.optional(),
-  to: hex.optional(),
-  type: z.enum(COLLATERAL_EVENT_TYPES),
-});
-export type CollateralPayload = z.infer<typeof collateralPayloadSchema>;
+export type PositionsPayload = z.infer<typeof positionsPayloadSchema>;
 
 // --- combos ----------------------------------------------------------------
 
 export const COMBOS_EVENT_TYPES = [
-  "event_prepared",
-  "result_reported",
+  "redemption",
+  "binary_redemption",
+  "neg_risk_redemption",
+  "collateral_positions_converted",
+  "neg_risk_positions_converted",
+  "position_converted",
   "position_redeemed",
   "module_positions_merged",
   "module_positions_split",
   "horizontal_merge",
   "horizontal_split",
-  "position_converted",
-  "condition_resolved",
-  "resolution_paused",
-  "resolution_unpaused",
-  "resolver_paused",
-  "resolver_unpaused",
+  "split_on_condition",
+  "merged_on_condition",
+  "converted_to_yes_basket",
+  "merged_from_yes_basket",
+  "extracted",
+  "injected",
+  "compressed",
+  "combinatorial_wrapped",
+  "combinatorial_unwrapped",
+  "position_migrated",
+  "migration_resolved",
   "bridge_position_minted",
   "bridge_positions_burned",
   "legacy_collateral_settled",
-  "migration_condition_registered",
-  "migration_resolved",
-  "position_migrated",
-  "combinatorial_condition_prepared",
-  "compressed",
-  "converted_to_yes_basket",
-  "extracted",
-  "injected",
-  "merged_from_yes_basket",
-  "merged_on_condition",
-  "split_on_condition",
-  "combinatorial_wrapped",
-  "combinatorial_unwrapped",
-  "transfer_single",
-  "transfer_batch",
 ] as const;
 
-/** Module / bridge / combinatorial / ERC-1155 payload. */
+/** Module / redeemer / neg-risk / combinatorial system payload. */
 export const combosPayloadSchema = z.looseObject({
   amount: hex.optional(),
   from: hex.optional(),
@@ -191,46 +201,73 @@ export const combosPayloadSchema = z.looseObject({
 });
 export type CombosPayload = z.infer<typeof combosPayloadSchema>;
 
-// --- prices ----------------------------------------------------------------
+// --- transfers -------------------------------------------------------------
 
-/** Last-traded price tick. Flat shape — no `type` discriminator. */
-export const pricesPayloadSchema = z.looseObject({
-  /** Last-traded price, USDC per share. */
-  price: z.number(),
-  /** When the tick was produced (Unix ms). */
-  timestamp_ms: z.number(),
-  token_id: hex,
+export const TRANSFERS_EVENT_TYPES = [
+  "transfer_single",
+  "transfer_batch",
+] as const;
+
+/** ERC-1155 outcome-token move payload. */
+export const transfersPayloadSchema = z.looseObject({
+  amount: hex.optional(),
+  from: hex.optional(),
+  id: hex.optional(),
+  operator: hex.optional(),
+  to: hex.optional(),
+  type: z.enum(TRANSFERS_EVENT_TYPES),
 });
-export type PricesPayload = z.infer<typeof pricesPayloadSchema>;
+export type TransfersPayload = z.infer<typeof transfersPayloadSchema>;
+
+// --- accounts --------------------------------------------------------------
+
+export const ACCOUNTS_EVENT_TYPES = [
+  "wallet_deployed",
+  "proxy_creation",
+] as const;
+
+/** Proxy wallet creation payload. */
+export const accountsPayloadSchema = z.looseObject({
+  owner: hex.optional(),
+  proxy: hex.optional(),
+  type: z.enum(ACCOUNTS_EVENT_TYPES),
+  wallet: hex.optional(),
+});
+export type AccountsPayload = z.infer<typeof accountsPayloadSchema>;
 
 // --- aggregates ------------------------------------------------------------
 
-/** Any typed channel payload. Emitted by the `global` firehose. */
+/** Any typed topic-channel payload. Re-emitted by the cross-cutting filters. */
 export const anyConfirmedPayloadSchema = z.union([
-  tradesPayloadSchema,
+  tradingPayloadSchema,
+  feesPayloadSchema,
   oraclePayloadSchema,
+  resolutionPayloadSchema,
   lifecyclePayloadSchema,
-  activityPayloadSchema,
-  collateralPayloadSchema,
+  positionsPayloadSchema,
   combosPayloadSchema,
+  transfersPayloadSchema,
+  accountsPayloadSchema,
 ]);
 export type AnyConfirmedPayload = z.infer<typeof anyConfirmedPayloadSchema>;
 
 /**
- * Schema for the `data` of any event frame: a typed channel payload, a price
- * tick, or — for forward compatibility with event types added server-side
- * before the SDK enumerates them — any other JSON object. The final member
- * means validation never drops a structurally valid event, while letting
- * `parseInboundFrame` return fully-typed frames without an assertion.
+ * Schema for the `data` of any event frame: a typed channel payload or — for
+ * forward compatibility with event types added server-side before the SDK
+ * enumerates them — any other JSON object. The final member means validation
+ * never drops a structurally valid event, while letting `parseInboundFrame`
+ * return fully-typed frames without an assertion.
  */
 export const channelDataSchema = z.union([
-  tradesPayloadSchema,
+  tradingPayloadSchema,
+  feesPayloadSchema,
   oraclePayloadSchema,
+  resolutionPayloadSchema,
   lifecyclePayloadSchema,
-  activityPayloadSchema,
-  collateralPayloadSchema,
+  positionsPayloadSchema,
   combosPayloadSchema,
-  pricesPayloadSchema,
+  transfersPayloadSchema,
+  accountsPayloadSchema,
   z.record(z.string(), z.unknown()),
 ]);
 
@@ -238,22 +275,22 @@ export const channelDataSchema = z.union([
 export type AnyChannelPayload = z.infer<typeof channelDataSchema>;
 
 /**
- * Maps each confirmed channel to the payload its event frames carry. Filtered
- * views (`wallets`, `markets`, `large_trades`) and the `global` firehose
- * re-emit the typed channels' payloads.
+ * Maps each confirmed channel to the payload its event frames carry. The
+ * cross-cutting filter channels (`wallets`, `markets`) re-emit the typed topic
+ * channels' payloads.
  */
 export interface ConfirmedChannelPayloadMap {
-  global: AnyConfirmedPayload;
-  trades: TradesPayload;
+  trading: TradingPayload;
+  fees: FeesPayload;
   oracle: OraclePayload;
+  resolution: ResolutionPayload;
   lifecycle: LifecyclePayload;
-  activity: ActivityPayload;
-  collateral: CollateralPayload;
+  positions: PositionsPayload;
   combos: CombosPayload;
-  prices: PricesPayload;
+  transfers: TransfersPayload;
+  accounts: AccountsPayload;
   wallets: AnyConfirmedPayload;
   markets: AnyConfirmedPayload;
-  large_trades: TradesPayload;
 }
 
 /**

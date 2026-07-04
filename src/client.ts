@@ -24,8 +24,8 @@ export interface RadionOptions extends RadionConfig {
  * @example
  * const radion = new Radion({ apiKey: process.env.RADION_API_KEY! });
  * await radion.realtime.connect();
- * radion.realtime.subscribe("trades");
- * radion.realtime.onChannel("trades", (event) => console.log(event.data));
+ * radion.realtime.subscribe({ id: "trading", channel: "trading" });
+ * radion.realtime.onChannel("trading", (event) => console.log(event.data));
  */
 export class Radion {
   /** Realtime (WebSocket) product surface. */

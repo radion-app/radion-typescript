@@ -12,8 +12,8 @@ import { Radion } from "@radion-app/sdk";
 
 const radion = new Radion({ apiKey: process.env.RADION_API_KEY });
 await radion.realtime.connect();
-radion.realtime.subscribe({ id: "trades", channel: "trades" });
-radion.realtime.onChannel("trades", (event) => console.log(event.data));
+radion.realtime.subscribe({ id: "trading", channel: "trading" });
+radion.realtime.onChannel("trading", (event) => console.log(event.data));
 ```
 
 ## Features
@@ -47,9 +47,9 @@ const radion = new Radion({
 
 await radion.realtime.connect();
 
-radion.realtime.subscribe({ id: "trades", channel: "trades" });
+radion.realtime.subscribe({ id: "trading", channel: "trading" });
 
-radion.realtime.onChannel("trades", (event) => {
+radion.realtime.onChannel("trading", (event) => {
   console.log(event.channel, event.data);
 });
 ```
@@ -98,12 +98,14 @@ const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 
 A subscription is `{ id, channel, filters? }`. The `id` is your own string,
 echoed back on every event so you can tell subscriptions apart; `channel` may
-carry a `mempool.` prefix. Some channels require a filter:
+carry a `mempool.` prefix. Some channels require a filter (`wallets` needs
+`wallets`; `markets` needs `market_ids` or `token_ids`), while `trading`
+accepts `wallets`, `market_ids`, `token_ids`, and `min_usd` optionally:
 
 ```ts
 radion.realtime.subscribe({
   id: "whales",
-  channel: "large_trades",
+  channel: "trading",
   filters: { min_usd: 10_000 },
 });
 radion.realtime.subscribe({
@@ -118,12 +120,24 @@ radion.realtime.onAnyChannel((e) => console.log(e.id, e.channel, e.data));
 
 ### Channels
 
+Nine topic channels — every decoded event routes to exactly one:
+
 ```
-global · trades · activity · lifecycle · oracle · collateral
-combos · prices · wallets · markets · large_trades
+trading · fees · oracle · resolution · lifecycle
+positions · combos · transfers · accounts
 ```
 
-Available at runtime as `CHANNELS` and at the type level as `Channel`.
+Plus two cross-cutting filter channels that apply across all topics and
+require a filter:
+
+```
+wallets · markets
+```
+
+Every channel also has a `mempool.`-prefixed companion (for example
+`mempool.trading`) emitting speculative pending transactions before block
+inclusion. Available at runtime as `CHANNELS` and at the type level as
+`Channel`.
 
 ```ts
 import { CHANNELS, type Channel } from "@radion-app/sdk";

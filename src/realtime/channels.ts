@@ -2,17 +2,17 @@
  * The complete set of WebSocket channels exposed by the Radion realtime API.
  */
 export const CHANNELS = [
-  "global",
-  "trades",
-  "activity",
-  "lifecycle",
+  "trading",
+  "fees",
   "oracle",
-  "collateral",
+  "resolution",
+  "lifecycle",
+  "positions",
   "combos",
-  "prices",
+  "transfers",
+  "accounts",
   "wallets",
   "markets",
-  "large_trades",
 ] as const;
 
 /**
@@ -59,6 +59,10 @@ export type FilterKey = "wallets" | "market_ids" | "token_ids" | "min_usd";
  * `requiredAnyOf` means at least one of the listed filters must be present.
  * Channels absent from this map accept no filters. Mempool companions share
  * their confirmed channel's requirements.
+ *
+ * The market axis (`market_ids` UNION `token_ids`) is a single axis: a market's
+ * conditionId and its outcome token_ids both identify it. A filter a channel
+ * does not accept is ignored (has no effect), not an error.
  */
 export const FILTER_REQUIREMENTS: Partial<
   Record<
@@ -66,9 +70,15 @@ export const FILTER_REQUIREMENTS: Partial<
     { optional?: readonly FilterKey[]; requiredAnyOf?: readonly FilterKey[] }
   >
 > = {
-  large_trades: { optional: ["min_usd"] },
+  accounts: { optional: ["wallets"] },
+  combos: { optional: ["wallets", "market_ids", "token_ids"] },
+  fees: { optional: ["wallets", "token_ids"] },
+  lifecycle: { optional: ["market_ids", "token_ids"] },
   markets: { requiredAnyOf: ["market_ids", "token_ids"] },
-  prices: { optional: ["token_ids"] },
-  trades: { optional: ["wallets"] },
+  oracle: { optional: ["market_ids"] },
+  positions: { optional: ["wallets", "market_ids", "token_ids"] },
+  resolution: { optional: ["market_ids"] },
+  trading: { optional: ["wallets", "market_ids", "token_ids", "min_usd"] },
+  transfers: { optional: ["wallets", "token_ids"] },
   wallets: { requiredAnyOf: ["wallets"] },
 };
