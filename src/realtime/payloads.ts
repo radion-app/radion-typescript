@@ -235,6 +235,88 @@ export const accountsPayloadSchema = z.looseObject({
 });
 export type AccountsPayload = z.infer<typeof accountsPayloadSchema>;
 
+// --- clob ------------------------------------------------------------------
+
+/**
+ * The CLOB WebSocket family is a separate channel family. Unlike topic
+ * channels, each CLOB channel has ONE fixed `data` shape with NO snake_case
+ * `type` discriminator. Ids are strings (`asset_id` = U256 string, `market` =
+ * `0x` hex string); prices/sizes/`timestamp` are numbers; `Option`al fields are
+ * optional.
+ */
+
+/** A single price level in a CLOB order book. */
+export const clobBookLevelSchema = z.looseObject({
+  price: z.number(),
+  size: z.number(),
+});
+export type ClobBookLevel = z.infer<typeof clobBookLevelSchema>;
+
+/** `clob.book` — a full order-book snapshot for an asset. */
+export const clobBookPayloadSchema = z.looseObject({
+  asks: z.array(clobBookLevelSchema),
+  asset_id: z.string(),
+  bids: z.array(clobBookLevelSchema),
+  market: z.string(),
+  timestamp: z.number(),
+});
+export type ClobBookPayload = z.infer<typeof clobBookPayloadSchema>;
+
+/** A single asset's entry in a `clob.prices` update. */
+export const clobPriceChangeSchema = z.looseObject({
+  asset_id: z.string(),
+  best_ask: z.number().optional(),
+  best_bid: z.number().optional(),
+  price: z.number(),
+  size: z.number().optional(),
+});
+export type ClobPriceChange = z.infer<typeof clobPriceChangeSchema>;
+
+/** `clob.prices` — batched price changes for a market. */
+export const clobPricesPayloadSchema = z.looseObject({
+  changes: z.array(clobPriceChangeSchema),
+  market: z.string(),
+  timestamp: z.number(),
+});
+export type ClobPricesPayload = z.infer<typeof clobPricesPayloadSchema>;
+
+/** `clob.last_trade` — the most recent trade for an asset. */
+export const clobLastTradePayloadSchema = z.looseObject({
+  asset_id: z.string(),
+  market: z.string(),
+  price: z.number(),
+  size: z.number().optional(),
+  timestamp: z.number(),
+});
+export type ClobLastTradePayload = z.infer<typeof clobLastTradePayloadSchema>;
+
+/** `clob.midpoint` — the current midpoint price for an asset. */
+export const clobMidpointPayloadSchema = z.looseObject({
+  asset_id: z.string(),
+  market: z.string(),
+  midpoint: z.number(),
+  timestamp: z.number(),
+});
+export type ClobMidpointPayload = z.infer<typeof clobMidpointPayloadSchema>;
+
+/** `clob.tick_size` — a tick-size change notification for an asset. */
+export const clobTickSizePayloadSchema = z.looseObject({
+  asset_id: z.string(),
+  market: z.string(),
+  timestamp: z.number(),
+});
+export type ClobTickSizePayload = z.infer<typeof clobTickSizePayloadSchema>;
+
+/** `clob.best_bid_ask` — the top of book for an asset. */
+export const clobBestBidAskPayloadSchema = z.looseObject({
+  asset_id: z.string(),
+  best_ask: z.number(),
+  best_bid: z.number(),
+  market: z.string(),
+  timestamp: z.number(),
+});
+export type ClobBestBidAskPayload = z.infer<typeof clobBestBidAskPayloadSchema>;
+
 // --- aggregates ------------------------------------------------------------
 
 /** Any typed topic-channel payload. Re-emitted by the cross-cutting filters. */
@@ -268,6 +350,12 @@ export const channelDataSchema = z.union([
   combosPayloadSchema,
   transfersPayloadSchema,
   accountsPayloadSchema,
+  clobBookPayloadSchema,
+  clobPricesPayloadSchema,
+  clobLastTradePayloadSchema,
+  clobMidpointPayloadSchema,
+  clobTickSizePayloadSchema,
+  clobBestBidAskPayloadSchema,
   z.record(z.string(), z.unknown()),
 ]);
 
@@ -294,10 +382,25 @@ export interface ConfirmedChannelPayloadMap {
 }
 
 /**
+ * Maps each CLOB channel to the single fixed payload its event frames carry.
+ * CLOB payloads have no `type` discriminator and no `mempool.` companion.
+ */
+export interface ClobChannelPayloadMap {
+  "clob.book": ClobBookPayload;
+  "clob.prices": ClobPricesPayload;
+  "clob.last_trade": ClobLastTradePayload;
+  "clob.midpoint": ClobMidpointPayload;
+  "clob.tick_size": ClobTickSizePayload;
+  "clob.best_bid_ask": ClobBestBidAskPayload;
+}
+
+/**
  * Maps every subscribable channel to its payload. Each `mempool.`-prefixed
  * companion carries the same payload shape as its confirmed channel, so the
- * mempool keys are derived from {@link ConfirmedChannelPayloadMap}.
+ * mempool keys are derived from {@link ConfirmedChannelPayloadMap}. CLOB
+ * channels map to their own fixed payloads via {@link ClobChannelPayloadMap}.
  */
-export type ChannelPayloadMap = ConfirmedChannelPayloadMap & {
-  [C in keyof ConfirmedChannelPayloadMap as `mempool.${C & string}`]: ConfirmedChannelPayloadMap[C];
-};
+export type ChannelPayloadMap = ConfirmedChannelPayloadMap &
+  ClobChannelPayloadMap & {
+    [C in keyof ConfirmedChannelPayloadMap as `mempool.${C & string}`]: ConfirmedChannelPayloadMap[C];
+  };

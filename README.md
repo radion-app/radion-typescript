@@ -147,6 +147,32 @@ for (const channel of CHANNELS) {
 }
 ```
 
+### CLOB channels
+
+A separate CLOB channel family is also subscribable:
+
+```
+clob.book · clob.prices · clob.last_trade
+clob.midpoint · clob.tick_size · clob.best_bid_ask
+```
+
+Each CLOB channel **requires** a `token_ids` filter and has **no** `mempool.`
+companion. Unlike topic channels, a CLOB `event.data` is a single fixed shape
+with no `type` discriminator. Available at runtime as `CLOB_CHANNELS` and at the
+type level as `ClobChannel`.
+
+```ts
+radion.realtime.subscribe({
+  id: "book",
+  channel: "clob.prices",
+  filters: { token_ids: ["123…"] },
+});
+radion.realtime.onChannel("clob.prices", (event) => {
+  // event.data narrows to the clob.prices payload
+  console.log(event.data.market, event.data.changes);
+});
+```
+
 ### Lifecycle events
 
 ```ts

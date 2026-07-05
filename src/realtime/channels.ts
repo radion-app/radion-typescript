@@ -27,10 +27,30 @@ export type Channel = (typeof CHANNELS)[number];
 export type MempoolChannel = `mempool.${Channel}`;
 
 /**
- * Any channel name accepted by {@link RealtimeClient.subscribe} — a confirmed
- * channel or its `mempool.` companion.
+ * The CLOB WebSocket channel family, proxied by the Radion server. A SEPARATE
+ * family from the topic {@link CHANNELS}: each is `clob.`-prefixed, requires a
+ * `token_ids` filter, and has NO `mempool.` companion. Kept out of `CHANNELS`
+ * so the `mempool.${Channel}` derivation never produces `mempool.clob.*`.
  */
-export type SubscribableChannel = Channel | MempoolChannel;
+export const CLOB_CHANNELS = [
+  "clob.book",
+  "clob.prices",
+  "clob.last_trade",
+  "clob.midpoint",
+  "clob.tick_size",
+  "clob.best_bid_ask",
+] as const;
+
+/**
+ * A CLOB channel name the SDK is able to subscribe to.
+ */
+export type ClobChannel = (typeof CLOB_CHANNELS)[number];
+
+/**
+ * Any channel name accepted by {@link RealtimeClient.subscribe} — a confirmed
+ * channel, its `mempool.` companion, or a CLOB channel.
+ */
+export type SubscribableChannel = Channel | MempoolChannel | ClobChannel;
 
 /**
  * Runtime guard that narrows an arbitrary string to a known {@link Channel}.
@@ -45,11 +65,18 @@ export const isMempoolChannel = (value: string): value is MempoolChannel =>
   value.startsWith("mempool.") && isChannel(value.slice("mempool.".length));
 
 /**
- * Runtime guard for any subscribable channel (confirmed or mempool).
+ * Runtime guard that narrows an arbitrary string to a known {@link ClobChannel}.
+ */
+export const isClobChannel = (value: string): value is ClobChannel =>
+  (CLOB_CHANNELS as readonly string[]).includes(value);
+
+/**
+ * Runtime guard for any subscribable channel (confirmed, mempool, or CLOB).
  */
 export const isSubscribableChannel = (
   value: string
-): value is SubscribableChannel => isChannel(value) || isMempoolChannel(value);
+): value is SubscribableChannel =>
+  isChannel(value) || isMempoolChannel(value) || isClobChannel(value);
 
 /** A server-side filter key. */
 export type FilterKey = "wallets" | "market_ids" | "token_ids" | "min_usd";
@@ -81,4 +108,22 @@ export const FILTER_REQUIREMENTS: Partial<
   trading: { optional: ["wallets", "market_ids", "token_ids", "min_usd"] },
   transfers: { optional: ["wallets", "token_ids"] },
   wallets: { requiredAnyOf: ["wallets"] },
+};
+
+/**
+ * Per-channel filter requirements for the CLOB family. Each CLOB channel only
+ * accepts — and REQUIRES — a `token_ids` filter (no `wallets` / `market_ids` /
+ * `min_usd`). Kept separate from {@link FILTER_REQUIREMENTS} because CLOB
+ * channels are not topic {@link Channel}s.
+ */
+export const CLOB_FILTER_REQUIREMENTS: Record<
+  ClobChannel,
+  { optional?: readonly FilterKey[]; requiredAnyOf?: readonly FilterKey[] }
+> = {
+  "clob.best_bid_ask": { requiredAnyOf: ["token_ids"] },
+  "clob.book": { requiredAnyOf: ["token_ids"] },
+  "clob.last_trade": { requiredAnyOf: ["token_ids"] },
+  "clob.midpoint": { requiredAnyOf: ["token_ids"] },
+  "clob.prices": { requiredAnyOf: ["token_ids"] },
+  "clob.tick_size": { requiredAnyOf: ["token_ids"] },
 };
