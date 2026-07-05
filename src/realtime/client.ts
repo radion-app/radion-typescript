@@ -99,8 +99,8 @@ type ConnectionState = "idle" | "connecting" | "open" | "closed";
  * @example
  * const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY! });
  * await client.connect();
- * client.subscribe({ id: "trades", channel: "trades" });
- * client.onChannel("trades", (event) => console.log(event.id, event.data));
+ * client.subscribe({ id: "trading", channel: "trading" });
+ * client.onChannel("trading", (event) => console.log(event.id, event.data));
  */
 export class RealtimeClient {
   private readonly apiKey: string;

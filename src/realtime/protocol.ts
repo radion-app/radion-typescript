@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import type { FilterKey, SubscribableChannel } from "./channels.js";
 import {
+  CLOB_FILTER_REQUIREMENTS,
   FILTER_REQUIREMENTS,
   isChannel,
+  isClobChannel,
   isMempoolChannel,
 } from "./channels.js";
 import { channelDataSchema } from "./payloads.js";
@@ -13,17 +15,18 @@ import type { AnyChannelPayload, ChannelPayloadMap } from "./payloads.js";
  * Server-side filters narrowing the events delivered on a channel.
  *
  * Each field maps to a filter the Radion realtime API applies before sending.
- * Some channels require a filter (for example `wallets` needs `wallets`,
- * `large_trades` accepts `min_usd`); see the channel docs.
+ * Some channels require a filter (`wallets` needs `wallets`; `markets` needs
+ * `market_ids` or `token_ids`), while `trading` accepts all four optionally;
+ * see the channel docs.
  */
 export interface ChannelFilters {
-  /** Wallet addresses to match (required by `wallets`, optional on `trades`). */
+  /** Wallet addresses to match (required by `wallets`, optional on `trading`). */
   wallets?: string[];
   /** Condition / market ids to match (required by `markets`). */
   market_ids?: string[];
-  /** ERC-1155 token ids to match (required by `markets`, optional on `prices`). */
+  /** ERC-1155 token ids to match (required by `markets`, optional on `trading`). */
   token_ids?: string[];
-  /** Minimum trade notional in USD (optional on `large_trades`). */
+  /** Minimum trade notional in USD (optional on `trading`). */
   min_usd?: number;
 }
 
@@ -175,29 +178,35 @@ export const serializeOutboundFrame = (frame: OutboundFrame): string =>
  *
  * Returns an error message describing the first violation, or `null` when the
  * filters satisfy the channel's requirements. Mempool companions share their
- * confirmed channel's requirements.
+ * confirmed channel's requirements; CLOB channels each require `token_ids`.
  */
 export const validateSubscriptionFilters = (
   subscription: Subscription
 ): string | null => {
   const { channel, filters } = subscription;
+  const present = (key: FilterKey): boolean => {
+    const value = filters?.[key];
+    return Array.isArray(value) ? value.length > 0 : value !== undefined;
+  };
+  const checkRequired = (
+    requiredAnyOf: readonly FilterKey[] | undefined
+  ): string | null => {
+    if (!requiredAnyOf || requiredAnyOf.some(present)) {
+      return null;
+    }
+    const list = requiredAnyOf.join(" or ");
+    return `channel "${channel}" requires a ${list} filter`;
+  };
+
+  if (isClobChannel(channel)) {
+    return checkRequired(CLOB_FILTER_REQUIREMENTS[channel].requiredAnyOf);
+  }
+
   const confirmed = isMempoolChannel(channel)
     ? channel.slice("mempool.".length)
     : channel;
   if (!isChannel(confirmed)) {
     return `unknown channel "${channel}"`;
   }
-  const requirement = FILTER_REQUIREMENTS[confirmed];
-  if (!requirement?.requiredAnyOf) {
-    return null;
-  }
-  const present = (key: FilterKey): boolean => {
-    const value = filters?.[key];
-    return Array.isArray(value) ? value.length > 0 : value !== undefined;
-  };
-  if (!requirement.requiredAnyOf.some(present)) {
-    const list = requirement.requiredAnyOf.join(" or ");
-    return `channel "${channel}" requires a ${list} filter`;
-  }
-  return null;
+  return checkRequired(FILTER_REQUIREMENTS[confirmed]?.requiredAnyOf);
 };
