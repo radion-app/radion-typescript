@@ -26,6 +26,13 @@ export interface RadionOptions extends RadionConfig {
  * await radion.realtime.connect();
  * radion.realtime.subscribe({ id: "trading", channel: "trading" });
  * radion.realtime.onChannel("trading", (event) => console.log(event.data));
+ *
+ * @example
+ * // Public JWT flow (browser-safe pk_jwt_ key + user JWT):
+ * const radion = new Radion({
+ *   apiKey: "pk_jwt_...",
+ *   realtime: { token: () => fetchUserJwt() },
+ * });
  */
 export class Radion {
   /** Realtime (WebSocket) product surface. */

@@ -1,12 +1,11 @@
-import { WebSocket } from "ws";
-import type { RawData } from "ws";
-
 import { DEFAULT_WS_URL } from "../config.js";
 import {
   RadionConnectionError,
   RadionError,
   RadionServerError,
 } from "../errors.js";
+import { buildAuthQueryUrl, isBrowser, normalizeToken } from "./auth.js";
+import type { TokenInput } from "./auth.js";
 import type { SubscribableChannel } from "./channels.js";
 import { EventDispatcher } from "./event-dispatcher.js";
 import type {
@@ -30,6 +29,8 @@ import type {
 import { ReconnectManager } from "./reconnect-manager.js";
 import type { ReconnectOptions } from "./reconnect-manager.js";
 import { SubscriptionManager } from "./subscription-manager.js";
+import { createSocket } from "./transport.js";
+import type { SocketLike } from "./transport.js";
 
 /**
  * Bridge a per-channel typed handler to the wide {@link ChannelHandler} used
@@ -41,20 +42,6 @@ import { SubscriptionManager } from "./subscription-manager.js";
 const asChannelHandler = (handler: (event: never) => void): ChannelHandler =>
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   handler as ChannelHandler;
-
-/** Normalise a `ws` data frame into a UTF-8 string. */
-const decodeData = (data: RawData): string => {
-  if (typeof data === "string") {
-    return data;
-  }
-  if (Array.isArray(data)) {
-    return Buffer.concat(data).toString("utf-8");
-  }
-  if (Buffer.isBuffer(data)) {
-    return data.toString("utf-8");
-  }
-  return Buffer.from(data).toString("utf-8");
-};
 
 /** Build a subscribe frame, omitting `filters` when none are set. */
 const subscribeFrame = (subscription: Subscription): OutboundFrame =>
@@ -83,6 +70,18 @@ export interface RealtimeOptions {
   reconnect?: ReconnectOptions | false;
   /** Tune heartbeat timing, or pass `false` to disable heartbeats. */
   heartbeat?: HeartbeatOptions | false;
+  /**
+   * User JWT for the public-key (`pk_jwt_`) flow. A string, or a provider
+   * called on every (re)connect so the token is always fresh. Omit for
+   * secret-key auth.
+   */
+  token?: TokenInput;
+  /**
+   * Send credentials in the URL query instead of headers. Auto-detected in the
+   * browser (where headers are unavailable on the WS upgrade); defaults to
+   * `false` under Node. Set explicitly to override.
+   */
+  authInQuery?: boolean;
 }
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed";
@@ -105,12 +104,14 @@ type ConnectionState = "idle" | "connecting" | "open" | "closed";
 export class RealtimeClient {
   private readonly apiKey: string;
   private readonly url: string;
+  private readonly tokenProvider: (() => Promise<string>) | null;
+  private readonly authInQuery: boolean;
   private readonly dispatcher = new EventDispatcher();
   private readonly subscriptions = new SubscriptionManager();
   private readonly reconnectManager: ReconnectManager | null;
   private readonly heartbeat: Heartbeat | null;
 
-  private socket: WebSocket | null = null;
+  private socket: SocketLike | null = null;
   private state: ConnectionState = "idle";
   private shuttingDown = false;
   private reconnectTimer?: ReturnType<typeof setTimeout> | undefined;
@@ -125,6 +126,8 @@ export class RealtimeClient {
     }
     this.apiKey = options.apiKey;
     this.url = options.url ?? DEFAULT_WS_URL;
+    this.tokenProvider = normalizeToken(options.token);
+    this.authInQuery = options.authInQuery ?? isBrowser();
     this.reconnectManager =
       options.reconnect === false
         ? null
@@ -275,23 +278,73 @@ export class RealtimeClient {
 
   private openSocket(): void {
     this.state = "connecting";
-    const socket = new WebSocket(this.url, {
-      headers: { "X-API-Key": this.apiKey },
-    });
-    this.socket = socket;
+    void this.openSocketAsync();
+  }
 
-    socket.on("open", () => {
-      this.handleOpen();
-    });
-    socket.on("message", (data) => {
-      this.handleMessage(decodeData(data));
-    });
-    socket.on("error", (err) => {
-      this.dispatcher.emit("error", err);
-    });
-    socket.on("close", (code, reasonBuf) => {
-      this.handleClose(code, reasonBuf.toString("utf-8"));
-    });
+  private async openSocketAsync(): Promise<void> {
+    let token: string | undefined;
+    try {
+      token = this.tokenProvider ? await this.tokenProvider() : undefined;
+    } catch (error) {
+      this.handleOpenFailure(
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return;
+    }
+
+    const useQuery = this.authInQuery;
+    const url = useQuery
+      ? buildAuthQueryUrl(this.url, { apiKey: this.apiKey, token })
+      : this.url;
+    const headers = useQuery ? undefined : this.buildAuthHeaders(token);
+
+    try {
+      this.socket = await createSocket(url, {
+        handlers: {
+          onClose: (code, reason) => {
+            this.handleClose(code, reason);
+          },
+          onError: (error) => {
+            this.dispatcher.emit("error", error);
+          },
+          onMessage: (data) => {
+            this.handleMessage(data);
+          },
+          onOpen: () => {
+            this.handleOpen();
+          },
+        },
+        headers,
+      });
+    } catch (error) {
+      this.handleOpenFailure(
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+  }
+
+  /** Build the auth headers for header-mode auth (secret key, or key + JWT). */
+  private buildAuthHeaders(token: string | undefined): Record<string, string> {
+    const headers: Record<string, string> = { "X-API-Key": this.apiKey };
+    if (token !== undefined) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  private handleOpenFailure(error: Error): void {
+    this.dispatcher.emit("error", error);
+    if (this.shuttingDown || this.state === "closed") {
+      return;
+    }
+    if (this.reconnectManager) {
+      this.scheduleReconnect();
+    } else {
+      this.state = "closed";
+      this.rejectOpenWaiters(
+        new RadionConnectionError(`connection failed: ${error.message}`)
+      );
+    }
   }
 
   private handleOpen(): void {

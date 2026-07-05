@@ -8,4 +8,7 @@ export default defineConfig({
     typeAware: true,
     typeCheck: true,
   },
+  rules: {
+    "no-barrel-file": ["error", { threshold: 150 }],
+  },
 });

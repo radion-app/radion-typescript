@@ -11,7 +11,12 @@ export const DEFAULT_WS_URL = "wss://api.radion.app/ws";
  * uses `wsUrl`.
  */
 export interface RadionConfig {
-  /** Radion API key, sent as the `X-API-Key` header on every request. */
+  /**
+   * Radion API key, sent as the `X-API-Key` header on every request. Accepts a
+   * secret key (`sk_`/`rk_`) or a public key (`pk_jwt_`). For the public-key
+   * flow, supply the user JWT and (optionally) `authInQuery` through the
+   * `realtime` options.
+   */
   apiKey: string;
   /** Override the base URL. Defaults to `https://api.radion.app`. */
   baseUrl?: string;
