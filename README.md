@@ -69,6 +69,25 @@ new Radion(options);
 | `wsUrl`    | `string`          | `wss://api.radion.app/ws` | Override the realtime endpoint.                       |
 | `realtime` | `RealtimeOptions` | enabled                   | Reconnect / heartbeat tuning for the realtime client. |
 
+### REST client
+
+The REST surface is generated from the public OpenAPI schema and grouped by
+resource: `markets`, `traders`, `events`, `search`, `orderBook`, `health`, and
+`auth`. Every call uses the shared API key and base URL.
+
+```ts
+const radion = new Radion({ apiKey: process.env.RADION_API_KEY });
+
+const { data } = await radion.markets.listMarkets({ query: { limit: 10 } });
+
+const pnl = await radion.traders.getTraderPnl({
+  path: { trader_id: "0x..." },
+});
+```
+
+Each call returns `{ data, error, response }`. The payload is wrapped in a
+`data` field.
+
 ### Realtime client
 
 `radion.realtime` is a `RealtimeClient`. It can also be imported and

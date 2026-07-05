@@ -3,4 +3,10 @@ import ultracite from "ultracite/oxfmt";
 
 export default defineConfig({
   ...ultracite,
+  ignorePatterns: [
+    ...(ultracite.ignorePatterns ?? []),
+    "src/rest/**",
+    "scripts/**",
+    "openapi.json",
+  ],
 });
