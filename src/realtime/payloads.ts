@@ -6,12 +6,14 @@
  * type the fields documented for that channel's payload.
  *
  * Provenance: field schemas mirror the published channel docs
- * (`/websockets/channels/*`), which document one representative payload per
- * channel plus the full discriminator set. Fields that are not universal across
- * a channel's events are marked optional, and every schema is `loose` so
- * additional fields the protocol carries are preserved at runtime rather than
- * stripped. Regenerate from the backend protocol schema to tighten per-event
- * field sets.
+ * (`/websockets/channels/*`), which now enumerate every event exhaustively along
+ * with its full field set. Each channel schema is the union of all its events'
+ * fields, so a payload for any event on the channel validates. Because events on
+ * a channel don't share a common field set, every field except `type` is
+ * optional, and every schema is `loose` so additional fields the protocol
+ * carries are preserved at runtime rather than stripped. This keeps the schemas
+ * forward-compatible; regenerate from the backend protocol schema to tighten
+ * per-event field sets.
  */
 
 import { z } from "zod";
@@ -39,12 +41,17 @@ export const tradingPayloadSchema = z.looseObject({
   fee: hex.optional(),
   maker: hex.optional(),
   makerAmountFilled: hex.optional(),
+  makerAssetId: hex.optional(),
   metadata: hex.optional(),
   orderHash: hex.optional(),
+  pauser: hex.optional(),
   /** `0` = buy, `1` = sell. v2 fills and matches only. */
   side: z.number().optional(),
   taker: hex.optional(),
   takerAmountFilled: hex.optional(),
+  takerAssetId: hex.optional(),
+  takerOrderHash: hex.optional(),
+  takerOrderMaker: hex.optional(),
   tokenId: hex.optional(),
   type: z.enum(TRADING_EVENT_TYPES),
 });
@@ -57,9 +64,8 @@ export const FEES_EVENT_TYPES = ["fee_charged_v1", "fee_charged_v2"] as const;
 /** Exchange fee charged payload. */
 export const feesPayloadSchema = z.looseObject({
   amount: hex.optional(),
-  id: hex.optional(),
   receiver: hex.optional(),
-  token: hex.optional(),
+  tokenId: hex.optional(),
   type: z.enum(FEES_EVENT_TYPES),
 });
 export type FeesPayload = z.infer<typeof feesPayloadSchema>;
@@ -87,11 +93,25 @@ export const ORACLE_EVENT_TYPES = [
 
 /** UMA question mechanism payload. */
 export const oraclePayloadSchema = z.looseObject({
+  ancillaryData: hex.optional(),
+  creator: hex.optional(),
+  earlyResolution: z.boolean().optional(),
+  earlyResolutionEnabled: z.boolean().optional(),
+  emergencyReport: z.boolean().optional(),
+  identifier: hex.optional(),
+  owner: hex.optional(),
   payouts: z.array(hex).optional(),
+  proposalBond: hex.optional(),
   questionID: hex.optional(),
+  requestTimestamp: hex.optional(),
+  requestor: hex.optional(),
+  resolutionTime: hex.optional(),
+  reward: hex.optional(),
+  rewardToken: hex.optional(),
   /** `int256` price as a signed decimal string (e.g. `"-1"`). */
   settledPrice: z.string().optional(),
   type: z.enum(ORACLE_EVENT_TYPES),
+  update: hex.optional(),
 });
 export type OraclePayload = z.infer<typeof oraclePayloadSchema>;
 
@@ -111,8 +131,16 @@ export const RESOLUTION_EVENT_TYPES = [
 /** Settlement outcome payload. */
 export const resolutionPayloadSchema = z.looseObject({
   conditionId: hex.optional(),
-  payouts: z.array(hex).optional(),
+  id: hex.optional(),
+  marketId: hex.optional(),
+  oracle: hex.optional(),
+  outcome: z.boolean().optional(),
+  outcomeSlotCount: hex.optional(),
+  payoutNumerators: z.array(hex).optional(),
   questionId: hex.optional(),
+  resolver: hex.optional(),
+  result: z.array(hex).optional(),
+  timestamp: hex.optional(),
   type: z.enum(RESOLUTION_EVENT_TYPES),
 });
 export type ResolutionPayload = z.infer<typeof resolutionPayloadSchema>;
@@ -131,11 +159,23 @@ export const LIFECYCLE_EVENT_TYPES = [
 
 /** Market creation / preparation payload. */
 export const lifecyclePayloadSchema = z.looseObject({
+  conditionCount: hex.optional(),
   conditionId: hex.optional(),
+  data: hex.optional(),
+  eventId: hex.optional(),
+  feeBips: hex.optional(),
+  index: hex.optional(),
+  legacyConditionId: hex.optional(),
+  legacyEventId: hex.optional(),
+  legs: z.array(hex).optional(),
+  marketId: hex.optional(),
   oracle: hex.optional(),
   outcomeSlotCount: hex.optional(),
   questionId: hex.optional(),
+  token0: hex.optional(),
+  token1: hex.optional(),
   type: z.enum(LIFECYCLE_EVENT_TYPES),
+  v2ConditionId: hex.optional(),
 });
 export type LifecyclePayload = z.infer<typeof lifecyclePayloadSchema>;
 
@@ -152,10 +192,17 @@ export const POSITIONS_EVENT_TYPES = [
 
 /** Plain CTF base-layer split / merge / redemption payload. */
 export const positionsPayloadSchema = z.looseObject({
+  amount: hex.optional(),
   amounts: z.array(hex).optional(),
+  collateralToken: hex.optional(),
   conditionId: hex.optional(),
+  indexSets: z.array(hex).optional(),
   initiator: hex.optional(),
+  parentCollectionId: hex.optional(),
+  partition: z.array(hex).optional(),
   payout: hex.optional(),
+  redeemer: hex.optional(),
+  stakeholder: hex.optional(),
   type: z.enum(POSITIONS_EVENT_TYPES),
 });
 export type PositionsPayload = z.infer<typeof positionsPayloadSchema>;
@@ -193,11 +240,45 @@ export const COMBOS_EVENT_TYPES = [
 /** Module / redeemer / neg-risk / combinatorial system payload. */
 export const combosPayloadSchema = z.looseObject({
   amount: hex.optional(),
+  amountOut: hex.optional(),
+  amounts: z.array(hex).optional(),
+  childNoConditionId: hex.optional(),
+  childYesConditionId: hex.optional(),
+  collateralOut: hex.optional(),
+  combinatorialPositionId: hex.optional(),
+  conditionId: hex.optional(),
+  conditionIndex: hex.optional(),
+  eventId: hex.optional(),
   from: hex.optional(),
-  id: hex.optional(),
-  operator: hex.optional(),
+  fullConditionId: hex.optional(),
+  indexSet: hex.optional(),
+  initiator: hex.optional(),
+  legacyConditionId: hex.optional(),
+  legacyPayout0: hex.optional(),
+  legacyPayout1: hex.optional(),
+  legacyToken: hex.optional(),
+  marketId: hex.optional(),
+  newPositionId: hex.optional(),
+  oldPositionId: hex.optional(),
+  outcomeIndex: hex.optional(),
+  parentConditionId: hex.optional(),
+  payout: hex.optional(),
+  positionAmount: hex.optional(),
+  positionId: hex.optional(),
+  positionIds: z.array(hex).optional(),
+  recipient: hex.optional(),
+  recipient0: hex.optional(),
+  recipient1: hex.optional(),
+  reducedConditionId: hex.optional(),
+  residualConditionId: hex.optional(),
+  result0: hex.optional(),
+  result1: hex.optional(),
+  stakeholder: hex.optional(),
   to: hex.optional(),
   type: z.enum(COMBOS_EVENT_TYPES),
+  underlyingPositionId: hex.optional(),
+  user: hex.optional(),
+  vault: hex.optional(),
 });
 export type CombosPayload = z.infer<typeof combosPayloadSchema>;
 
@@ -211,8 +292,10 @@ export const TRANSFERS_EVENT_TYPES = [
 /** ERC-1155 outcome-token move payload. */
 export const transfersPayloadSchema = z.looseObject({
   amount: hex.optional(),
+  amounts: z.array(hex).optional(),
   from: hex.optional(),
   id: hex.optional(),
+  ids: z.array(hex).optional(),
   operator: hex.optional(),
   to: hex.optional(),
   type: z.enum(TRANSFERS_EVENT_TYPES),
@@ -228,6 +311,8 @@ export const ACCOUNTS_EVENT_TYPES = [
 
 /** Proxy wallet creation payload. */
 export const accountsPayloadSchema = z.looseObject({
+  id: hex.optional(),
+  implementation: hex.optional(),
   owner: hex.optional(),
   proxy: hex.optional(),
   type: z.enum(ACCOUNTS_EVENT_TYPES),

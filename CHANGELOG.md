@@ -4,6 +4,21 @@ All notable changes to `@radion-app/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-07-05
+
+### Fixed
+
+- **Realtime payload schemas now cover every field each channel's events carry.**
+  The channel docs now document all 77 confirmed events exhaustively, and each
+  channel schema is the union of its events' fields. Corrected wrong field names:
+  `feesPayloadSchema` now uses `receiver` / `tokenId` / `amount` (was `id` /
+  `token`); `resolutionPayloadSchema` uses `payoutNumerators` / `result` (was
+  `payouts`); dropped the stray `id` / `operator` from `combosPayloadSchema`.
+  Added the many previously-missing fields (asset ids, UMA question params,
+  neg-risk / combinatorial / bridge fields, `transfers` batch `ids` / `amounts`,
+  `accounts` `id` / `implementation`, etc.). Schemas stay loose and every field
+  optional, so this is non-breaking.
+
 ## [0.4.1] - 2026-07-05
 
 ### Added
