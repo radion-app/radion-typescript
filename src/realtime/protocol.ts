@@ -6,7 +6,6 @@ import {
   FILTER_REQUIREMENTS,
   isChannel,
   isClobChannel,
-  isMempoolChannel,
 } from "./channels.js";
 import { channelDataSchema } from "./payloads.js";
 import type { AnyChannelPayload, ChannelPayloadMap } from "./payloads.js";
@@ -26,7 +25,12 @@ export interface ChannelFilters {
   market_ids?: string[];
   /** ERC-1155 token ids to match (required by `markets`, optional on `trading`). */
   token_ids?: string[];
-  /** Minimum trade notional in USD (optional on `trading`). */
+  /**
+   * Minimum trade notional in USD (optional on `trading`). On the confirmed
+   * feed this measures the actual filled USD; on the pending feed
+   * (`confirmed: false`) it measures the pending order's intended fill notional
+   * (`call.notional_usd`).
+   */
   min_usd?: number;
 }
 
@@ -35,13 +39,19 @@ export interface ChannelFilters {
  *
  * `id` is a client-defined string echoed back on acknowledgements and on every
  * event frame, so multiple subscriptions to the same channel can be told apart.
- * `channel` is a confirmed channel or its `mempool.` companion.
+ * `channel` is the bare channel name; set `confirmed: false` to receive the
+ * pending (mempool) feed for a topic channel instead of the confirmed feed.
  */
 export interface Subscription {
   /** Client-defined id, echoed back on confirmations and event frames. */
   id: string;
-  /** Channel name, confirmed or `mempool.`-prefixed. */
+  /** Bare channel name (topic or CLOB). */
   channel: SubscribableChannel;
+  /**
+   * `true` (default) subscribes to the confirmed feed; `false` subscribes to
+   * the pending (mempool) feed. Ignored for CLOB channels.
+   */
+  confirmed?: boolean;
   /** Optional server-side filters. */
   filters?: ChannelFilters;
 }
@@ -54,6 +64,7 @@ export type OutboundFrame =
       action: "subscribe";
       id: string;
       channel: SubscribableChannel;
+      confirmed?: boolean;
       filters?: ChannelFilters;
     }
   | { action: "unsubscribe"; id: string }
@@ -62,14 +73,17 @@ export type OutboundFrame =
 /**
  * A data event delivered on a subscribed channel.
  *
- * `id` identifies the subscription it belongs to; `channel` is the resolved
- * channel name. `data` is the typed payload for the channel — use
- * `ChannelEventFor<C>` to narrow it to a specific channel.
+ * `id` identifies the subscription it belongs to; `channel` is the bare channel
+ * name for both the confirmed and pending feed. `confirmed` distinguishes the
+ * feed: `false` means a pending (mempool) event whose `data` is a
+ * `MempoolPayload`. `data` is the typed payload for the channel — use
+ * `ChannelEventFor<C>` to narrow it to a specific confirmed channel.
  */
 export interface ChannelEvent<TData = AnyChannelPayload> {
   type: "event";
   id: string;
   channel: string;
+  confirmed?: boolean | undefined;
   data: TData;
 }
 
@@ -79,12 +93,27 @@ export type ChannelEventFor<C extends keyof ChannelPayloadMap> = ChannelEvent<
 >;
 
 /**
- * Server acknowledgement of a subscribe / unsubscribe request.
+ * Server acknowledgement of a subscribe / unsubscribe request. `confirmed`
+ * echoes which feed was subscribed (present on `subscribed` acks).
  */
 export interface SubscriptionAck {
   type: "subscribed" | "unsubscribed";
   id: string;
   channel?: string;
+  confirmed?: boolean;
+}
+
+/**
+ * Server warning frame — non-fatal. Sent, for example, right after a
+ * `confirmed: false` subscribe when the node has no pending stream
+ * (`code: "mempool_unavailable"`). Surfaced through the `warning` lifecycle
+ * event, not the `error` path.
+ */
+export interface WarningFrame {
+  type: "warning";
+  code: string;
+  id?: string;
+  message: string;
 }
 
 /**
@@ -109,6 +138,7 @@ export interface ErrorFrame {
 
 const eventFrameSchema = z.object({
   channel: z.string(),
+  confirmed: z.boolean().optional(),
   data: channelDataSchema,
   id: z.string(),
   type: z.literal("event"),
@@ -116,6 +146,7 @@ const eventFrameSchema = z.object({
 
 const ackFrameSchema = z.object({
   channel: z.string().optional(),
+  confirmed: z.boolean().optional(),
   id: z.string(),
   type: z.union([z.literal("subscribed"), z.literal("unsubscribed")]),
 });
@@ -131,12 +162,20 @@ const errorFrameSchema = z.object({
   type: z.literal("error"),
 });
 
+const warningFrameSchema = z.object({
+  code: z.string(),
+  id: z.string().optional(),
+  message: z.string(),
+  type: z.literal("warning"),
+});
+
 /** Validates the structure of any inbound frame envelope. */
 export const inboundFrameSchema = z.union([
   eventFrameSchema,
   ackFrameSchema,
   pongFrameSchema,
   errorFrameSchema,
+  warningFrameSchema,
 ]);
 
 /**
@@ -177,8 +216,9 @@ export const serializeOutboundFrame = (frame: OutboundFrame): string =>
  * Validate that a subscription carries the filters its channel requires.
  *
  * Returns an error message describing the first violation, or `null` when the
- * filters satisfy the channel's requirements. Mempool companions share their
- * confirmed channel's requirements; CLOB channels each require `token_ids`.
+ * filters satisfy the channel's requirements. Requirements are the same for the
+ * confirmed and pending feed of a topic channel; CLOB channels each require
+ * `token_ids`.
  */
 export const validateSubscriptionFilters = (
   subscription: Subscription
@@ -202,11 +242,8 @@ export const validateSubscriptionFilters = (
     return checkRequired(CLOB_FILTER_REQUIREMENTS[channel].requiredAnyOf);
   }
 
-  const confirmed = isMempoolChannel(channel)
-    ? channel.slice("mempool.".length)
-    : channel;
-  if (!isChannel(confirmed)) {
-    return `unknown channel "${channel}"`;
+  if (!isChannel(channel)) {
+    return `unknown channel "${channel as string}"`;
   }
-  return checkRequired(FILTER_REQUIREMENTS[confirmed]?.requiredAnyOf);
+  return checkRequired(FILTER_REQUIREMENTS[channel]?.requiredAnyOf);
 };

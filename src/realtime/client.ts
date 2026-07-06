@@ -43,20 +43,17 @@ const asChannelHandler = (handler: (event: never) => void): ChannelHandler =>
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   handler as ChannelHandler;
 
-/** Build a subscribe frame, omitting `filters` when none are set. */
-const subscribeFrame = (subscription: Subscription): OutboundFrame =>
-  subscription.filters
-    ? {
-        action: "subscribe",
-        channel: subscription.channel,
-        filters: subscription.filters,
-        id: subscription.id,
-      }
-    : {
-        action: "subscribe",
-        channel: subscription.channel,
-        id: subscription.id,
-      };
+/**
+ * Build a subscribe frame. `confirmed` is only sent for the pending feed
+ * (`false`), since the wire default is `true`; `filters` is omitted when unset.
+ */
+const subscribeFrame = (subscription: Subscription): OutboundFrame => ({
+  action: "subscribe",
+  channel: subscription.channel,
+  id: subscription.id,
+  ...(subscription.confirmed === false ? { confirmed: false } : {}),
+  ...(subscription.filters ? { filters: subscription.filters } : {}),
+});
 
 /**
  * Configuration for a {@link RealtimeClient}.
@@ -216,9 +213,10 @@ export class RealtimeClient {
   }
 
   /**
-   * Register a handler for events on a channel, narrowing `event.data`.
-   * Covers confirmed channels and their `mempool.` companions, which share the
-   * confirmed channel's payload shape.
+   * Register a handler for events on a channel, narrowing `event.data` to the
+   * confirmed payload. Both the confirmed and pending feed of a channel arrive
+   * on the same bare name; check `event.confirmed` to tell them apart (a
+   * pending event's `data` is a `MempoolPayload`).
    */
   onChannel<C extends SubscribableChannel>(
     channel: C,
@@ -383,6 +381,14 @@ export class RealtimeClient {
             id: frame.id,
           })
         );
+        break;
+      }
+      case "warning": {
+        this.dispatcher.emit("warning", {
+          code: frame.code,
+          message: frame.message,
+          ...(frame.id === undefined ? {} : { id: frame.id }),
+        });
         break;
       }
       // pong / subscribed / unsubscribed are liveness + acks; markAlive handled it.

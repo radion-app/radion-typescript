@@ -320,6 +320,83 @@ export const accountsPayloadSchema = z.looseObject({
 });
 export type AccountsPayload = z.infer<typeof accountsPayloadSchema>;
 
+// --- mempool (pending) -----------------------------------------------------
+
+/**
+ * A single un-collapsed order carried by a pending trade call.
+ *
+ * `token_id` and the amounts are decimal `uint256` strings (bigint-safe, same
+ * as the `token_ids` filter). `taker` is `null` for v2 exchange orders. `side`
+ * is the plain string `"buy"` or `"sell"`. There is deliberately no `price`.
+ */
+export const mempoolOrderSchema = z.looseObject({
+  maker: hex,
+  maker_amount: z.string(),
+  side: z.enum(["buy", "sell"]),
+  taker: hex.nullable(),
+  taker_amount: z.string(),
+  token_id: z.string(),
+});
+export type MempoolOrder = z.infer<typeof mempoolOrderSchema>;
+
+/**
+ * The decoded contract call of a pending transaction.
+ *
+ * `notional_usd` is the pending order's intended fill notional (the pending
+ * counterpart to the confirmed feed's actual filled USD; the `min_usd` filter
+ * measures this on the pending feed). `orders` is the per-order detail for
+ * trade calls and is empty for non-trade calls (positions / combos).
+ */
+export const mempoolCallSchema = z.looseObject({
+  market_ids: z.array(z.string()),
+  method: z.string(),
+  notional_usd: z.number().nullable(),
+  orders: z.array(mempoolOrderSchema),
+  token_ids: z.array(z.string()),
+  wallets: z.array(hex),
+});
+export type MempoolCall = z.infer<typeof mempoolCallSchema>;
+
+/**
+ * Known `contract_kinds` values a pending transaction can target. Documentation
+ * only — the schema types `contract_kinds` as plain strings so new server-side
+ * kinds never drop a frame.
+ */
+export const MEMPOOL_CONTRACT_KINDS = [
+  "exchange",
+  "oracle",
+  "lifecycle",
+  "ctf",
+  "combos",
+  "wallet_factory",
+  "unknown",
+] as const;
+
+/**
+ * A pending-transaction payload delivered on the pending feed of a topic
+ * channel (a subscription with `confirmed: false`). The `confirmed` flag lives
+ * on the event envelope, not here.
+ *
+ * `call` is the decoded call, or `null` when the transaction could not be
+ * decoded. `method_selector` is the 4-byte selector, or `null`.
+ * `contract_kinds` carries {@link MEMPOOL_CONTRACT_KINDS} values but is typed as
+ * plain strings so unknown kinds pass through instead of dropping the frame.
+ * `value` is the native POL value as a decimal `uint256` string. Loose so any
+ * additional transaction fields the protocol carries are preserved at runtime.
+ */
+export const mempoolPayloadSchema = z.looseObject({
+  call: mempoolCallSchema.nullable(),
+  contract_kinds: z.array(z.string()),
+  from: hex,
+  input: hex,
+  method_selector: hex.nullable(),
+  seen_at_ms: z.number(),
+  to: hex,
+  transaction_hash: hex,
+  value: z.string(),
+});
+export type MempoolPayload = z.infer<typeof mempoolPayloadSchema>;
+
 // --- clob ------------------------------------------------------------------
 
 /**
@@ -435,6 +512,7 @@ export const channelDataSchema = z.union([
   combosPayloadSchema,
   transfersPayloadSchema,
   accountsPayloadSchema,
+  mempoolPayloadSchema,
   clobBookPayloadSchema,
   clobPricesPayloadSchema,
   clobLastTradePayloadSchema,
@@ -468,7 +546,7 @@ export interface ConfirmedChannelPayloadMap {
 
 /**
  * Maps each CLOB channel to the single fixed payload its event frames carry.
- * CLOB payloads have no `type` discriminator and no `mempool.` companion.
+ * CLOB payloads have no `type` discriminator and no pending feed.
  */
 export interface ClobChannelPayloadMap {
   "clob.book": ClobBookPayload;
@@ -480,12 +558,11 @@ export interface ClobChannelPayloadMap {
 }
 
 /**
- * Maps every subscribable channel to its payload. Each `mempool.`-prefixed
- * companion carries the same payload shape as its confirmed channel, so the
- * mempool keys are derived from {@link ConfirmedChannelPayloadMap}. CLOB
- * channels map to their own fixed payloads via {@link ClobChannelPayloadMap}.
+ * Maps every subscribable channel to the payload its confirmed event frames
+ * carry, plus the CLOB channels' fixed payloads. The pending feed of a topic
+ * channel (a subscription with `confirmed: false`) instead delivers a
+ * {@link MempoolPayload}; distinguish it by the event envelope's `confirmed`
+ * flag rather than by a distinct channel key.
  */
 export type ChannelPayloadMap = ConfirmedChannelPayloadMap &
-  ClobChannelPayloadMap & {
-    [C in keyof ConfirmedChannelPayloadMap as `mempool.${C & string}`]: ConfirmedChannelPayloadMap[C];
-  };
+  ClobChannelPayloadMap;

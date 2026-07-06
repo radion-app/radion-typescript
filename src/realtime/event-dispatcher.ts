@@ -9,6 +9,8 @@ export interface ClientEventMap {
   close: { code: number; reason: string };
   reconnect: { attempt: number; delayMs: number };
   error: Error;
+  /** Non-fatal server warning, e.g. `mempool_unavailable`. */
+  warning: { code: string; id?: string; message: string };
 }
 
 export type ClientEvent = keyof ClientEventMap;
@@ -16,7 +18,7 @@ export type ClientHandler<E extends ClientEvent> = (
   payload: ClientEventMap[E]
 ) => void;
 
-type PayloadEvent = "close" | "reconnect" | "error";
+type PayloadEvent = "close" | "reconnect" | "error" | "warning";
 
 /**
  * Routes inbound channel frames to channel handlers and connection lifecycle

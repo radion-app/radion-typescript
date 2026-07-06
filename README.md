@@ -104,11 +104,11 @@ const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 | Method | Description |
 | --- | --- |
 | `connect()` | Open the connection. Resolves once established. |
-| `subscribe(subscription)` | Subscribe with `{ id, channel, filters? }`. Replayed on reconnect. |
+| `subscribe(subscription)` | Subscribe with `{ id, channel, confirmed?, filters? }`. Replayed on reconnect. |
 | `unsubscribe(id)` | Unsubscribe by subscription id. |
 | `onChannel(channel, fn)` | Handle events on one channel; `event.data` is narrowed. Chainable. |
 | `onAnyChannel(fn)` | Handle every channel event (id + channel + data). Chainable. |
-| `onLifecycle(event, fn)` | Handle a lifecycle event (`open`/`close`/`reconnect`/`error`). |
+| `onLifecycle(event, fn)` | Handle a lifecycle event (`open`/`close`/`reconnect`/`error`/`warning`). |
 | `offChannel(channel, fn?)` | Remove a channel handler (or all for the channel). Chainable. |
 | `offAnyChannel(fn?)` | Remove an all-channel handler (or all). Chainable. |
 | `offLifecycle(event, fn?)` | Remove a lifecycle handler (or all for the event). Chainable. |
@@ -117,7 +117,7 @@ const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 
 ### Subscriptions & filters
 
-A subscription is `{ id, channel, filters? }`. The `id` is your own string, echoed back on every event so you can tell subscriptions apart; `channel` may carry a `mempool.` prefix. Some channels require a filter (`wallets` needs `wallets`; `markets` needs `market_ids` or `token_ids`), while `trading` accepts `wallets`, `market_ids`, `token_ids`, and `min_usd` optionally:
+A subscription is `{ id, channel, confirmed?, filters? }`. The `id` is your own string, echoed back on every event so you can tell subscriptions apart. `confirmed` selects the feed: it defaults to `true` (confirmed, on-chain), and `false` gives the pending (mempool) feed of the same channel. Some channels require a filter (`wallets` needs `wallets`; `markets` needs `market_ids` or `token_ids`), while `trading` accepts `wallets`, `market_ids`, `token_ids`, and `min_usd` optionally:
 
 ```ts
 radion.realtime.subscribe({
@@ -150,7 +150,7 @@ Plus two cross-cutting filter channels that apply across all topics and require 
 wallets · markets
 ```
 
-Every channel also has a `mempool.`-prefixed companion (for example `mempool.trading`) emitting speculative pending transactions before block inclusion. Available at runtime as `CHANNELS` and at the type level as `Channel`.
+Every topic channel also has a pending feed emitting speculative transactions before block inclusion. Select it with `confirmed: false` on the subscription — the channel name stays bare (no prefix). A pending event's `data` is a `MempoolPayload`: the full pending-transaction envelope (`seen_at_ms`, `transaction_hash`, `from`, `to`, `contract_kinds`, `method_selector`, `input`, `value`) plus a decoded `call` (or `null`) carrying `notional_usd` and an un-collapsed `orders` array. Tell the feeds apart with `event.confirmed`. Available at runtime as `CHANNELS` and at the type level as `Channel`.
 
 ```ts
 import { CHANNELS, type Channel } from "@radion-app/sdk";
@@ -158,6 +158,27 @@ import { CHANNELS, type Channel } from "@radion-app/sdk";
 for (const channel of CHANNELS) {
   radion.realtime.subscribe({ id: channel, channel });
 }
+
+// pending (mempool) feed for the same channel:
+radion.realtime.subscribe({
+  id: "trading-pending",
+  channel: "trading",
+  confirmed: false,
+});
+radion.realtime.onChannel("trading", (event) => {
+  if (event.confirmed === false) {
+    // event.data is a MempoolPayload
+    console.log(event.data);
+  }
+});
+```
+
+If a pending subscribe reaches a node with no pending stream, the server sends a non-fatal `warning` frame (`code: "mempool_unavailable"`), surfaced through the `warning` lifecycle event:
+
+```ts
+radion.realtime.onLifecycle("warning", ({ code, id, message }) =>
+  console.warn(code, id, message)
+);
 ```
 
 ### CLOB channels
@@ -169,7 +190,7 @@ clob.book · clob.prices · clob.last_trade
 clob.midpoint · clob.tick_size · clob.best_bid_ask
 ```
 
-Each CLOB channel **requires** a `token_ids` filter and has **no** `mempool.` companion. Unlike topic channels, a CLOB `event.data` is a single fixed shape with no `type` discriminator. Available at runtime as `CLOB_CHANNELS` and at the type level as `ClobChannel`.
+Each CLOB channel **requires** a `token_ids` filter and has **no** pending feed (`confirmed` is ignored). Unlike topic channels, a CLOB `event.data` is a single fixed shape with no `type` discriminator. Available at runtime as `CLOB_CHANNELS` and at the type level as `ClobChannel`.
 
 ```ts
 radion.realtime.subscribe({
@@ -194,6 +215,9 @@ radion.realtime.onLifecycle("reconnect", ({ attempt, delayMs }) =>
   console.log(`reconnect #${attempt} in ${delayMs}ms`)
 );
 radion.realtime.onLifecycle("error", (err) => console.error(err));
+radion.realtime.onLifecycle("warning", ({ code, message }) =>
+  console.warn(code, message)
+);
 ```
 
 ### Reconnect & subscription restore

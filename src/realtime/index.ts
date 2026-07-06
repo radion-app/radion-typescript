@@ -8,9 +8,7 @@ export {
   type FilterKey,
   isChannel,
   isClobChannel,
-  isMempoolChannel,
   isSubscribableChannel,
-  type MempoolChannel,
   type SubscribableChannel,
 } from "./channels.js";
 export { RealtimeClient, type RealtimeOptions } from "./client.js";
@@ -56,6 +54,13 @@ export {
   LIFECYCLE_EVENT_TYPES,
   lifecyclePayloadSchema,
   type LifecyclePayload,
+  MEMPOOL_CONTRACT_KINDS,
+  mempoolCallSchema,
+  type MempoolCall,
+  mempoolOrderSchema,
+  type MempoolOrder,
+  mempoolPayloadSchema,
+  type MempoolPayload,
   ORACLE_EVENT_TYPES,
   oraclePayloadSchema,
   type OraclePayload,
@@ -84,5 +89,6 @@ export {
   type Subscription,
   type SubscriptionAck,
   validateSubscriptionFilters,
+  type WarningFrame,
 } from "./protocol.js";
 export type { ReconnectOptions } from "./reconnect-manager.js";

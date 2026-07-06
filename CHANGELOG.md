@@ -2,6 +2,19 @@
 
 All notable changes to `@radion-app/sdk` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-07-06
+
+### Changed
+
+- **BREAKING: pending (mempool) feed is now selected with a `confirmed` flag, not a channel prefix.** The `mempool.` channel-name prefix is removed entirely — there is no more `"mempool.trading"`. Subscribe to a channel's pending feed by passing `confirmed: false` on the subscription (`{ id, channel: "trading", confirmed: false }`); `confirmed` defaults to `true` (the confirmed feed) and is optional on the wire. The `MempoolChannel` type and `isMempoolChannel` guard are gone, and `SubscribableChannel` is now `Channel | ClobChannel`. CLOB channels have no pending feed — `confirmed` is ignored for them.
+- **BREAKING: unified event frame.** Confirmed and pending events now share one envelope: `channel` is always the bare name and a new `confirmed` boolean on the envelope tells the feeds apart. The `confirmed` field that pending frames previously carried inside `data` is gone. `SubscriptionAck` and the `subscribed` ack schema also echo `confirmed`. `ChannelPayloadMap` no longer has `mempool.`-prefixed keys.
+- **BREAKING: pending-transaction payload shape.** The `call` object field `usd` is renamed to `notional_usd`, and `call` gains an `orders` array of un-collapsed per-order detail (`maker`, `taker` nullable, `token_id`, `side` `"buy"`/`"sell"`, `maker_amount`, `taker_amount`; decimal `uint256` strings, no `price` yet). `orders` is empty for non-trade calls. The pending payload no longer carries an inner `confirmed`.
+
+### Added
+
+- **`MempoolPayload` / `MempoolCall` / `MempoolOrder` types and schemas** (`mempoolPayloadSchema`, `mempoolCallSchema`, `mempoolOrderSchema`) for the pending feed, exported and added to the event `data` union. `MempoolPayload` is the full pending-transaction envelope (`seen_at_ms`, `transaction_hash`, `from`, `to`, `contract_kinds`, `method_selector`, `call` — nullable, `input`, `value`); `contract_kinds` is a string array (known values in the exported `MEMPOOL_CONTRACT_KINDS`) that tolerates unknown kinds so new server-side kinds never drop a frame.
+- **`warning` lifecycle event and `WarningFrame` type.** The server sends a non-fatal `warning` frame (e.g. `code: "mempool_unavailable"`) right after a `confirmed: false` subscribe when the node has no pending stream; it is surfaced through the new `warning` lifecycle event rather than the `error` path.
+
 ## [0.5.0] - 2026-07-05
 
 ### Added
