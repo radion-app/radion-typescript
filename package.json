@@ -48,16 +48,16 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.20.0",
+    "@types/node": "^22.20.1",
     "@types/ws": "^8.18.1",
-    "lefthook": "^2.1.9",
-    "oxfmt": "^0.57.0",
-    "oxlint": "^1.72.0",
+    "lefthook": "^2.1.10",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
     "oxlint-tsgolint": "^0.24.0",
-    "tsdown": "^0.22.3",
-    "typescript": "^6.0.3",
-    "ultracite": "^7.9.0",
-    "vitest": "^4.1.9"
+    "tsdown": "^0.22.4",
+    "typescript": "^7.0.2",
+    "ultracite": "^7.9.3",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=18"
