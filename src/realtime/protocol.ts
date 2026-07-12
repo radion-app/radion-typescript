@@ -78,12 +78,20 @@ export type OutboundFrame =
  * feed: `false` means a pending (mempool) event whose `data` is a
  * `MempoolPayload`. `data` is the typed payload for the channel — use
  * `ChannelEventFor<C>` to narrow it to a specific confirmed channel.
+ *
+ * `seq` counts event frames on the connection (starting at 0, across all
+ * subscriptions) — a jump means frames were dropped. `sent_at_ms` is the
+ * server-send time in Unix ms: server→client latency is your receive time
+ * minus `sent_at_ms`. Pending events additionally carry `data.seen_at_ms`,
+ * the block-detection time, for block→client latency.
  */
 export interface ChannelEvent<TData = AnyChannelPayload> {
   type: "event";
   id: string;
   channel: string;
   confirmed?: boolean | undefined;
+  seq: number;
+  sent_at_ms: number;
   data: TData;
 }
 
@@ -99,8 +107,8 @@ export type ChannelEventFor<C extends keyof ChannelPayloadMap> = ChannelEvent<
 export interface SubscriptionAck {
   type: "subscribed" | "unsubscribed";
   id: string;
-  channel?: string;
-  confirmed?: boolean;
+  channel?: string | undefined;
+  confirmed?: boolean | undefined;
 }
 
 /**
@@ -141,6 +149,8 @@ const eventFrameSchema = z.object({
   confirmed: z.boolean().optional(),
   data: channelDataSchema,
   id: z.string(),
+  sent_at_ms: z.number(),
+  seq: z.number(),
   type: z.literal("event"),
 });
 

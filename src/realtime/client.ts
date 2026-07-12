@@ -391,10 +391,16 @@ export class RealtimeClient {
         });
         break;
       }
-      // pong / subscribed / unsubscribed are liveness + acks; markAlive handled it.
-      case "pong":
-      case "subscribed":
+      case "subscribed": {
+        this.dispatcher.emit("subscribed", frame);
+        break;
+      }
       case "unsubscribed": {
+        this.dispatcher.emit("unsubscribed", frame);
+        break;
+      }
+      // pong is liveness only; markAlive already handled it.
+      case "pong": {
         break;
       }
       default: {

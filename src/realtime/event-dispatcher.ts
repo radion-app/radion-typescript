@@ -1,4 +1,4 @@
-import type { ChannelEvent } from "./protocol.js";
+import type { ChannelEvent, SubscriptionAck } from "./protocol.js";
 
 /** Handler invoked with each event delivered on a channel. */
 export type ChannelHandler = (event: ChannelEvent) => void;
@@ -11,6 +11,10 @@ export interface ClientEventMap {
   error: Error;
   /** Non-fatal server warning, e.g. `mempool_unavailable`. */
   warning: { code: string; id?: string; message: string };
+  /** Server acknowledged a subscribe; echoes the subscription `id`. */
+  subscribed: SubscriptionAck;
+  /** Server acknowledged an unsubscribe; echoes the subscription `id`. */
+  unsubscribed: SubscriptionAck;
 }
 
 export type ClientEvent = keyof ClientEventMap;
@@ -18,7 +22,13 @@ export type ClientHandler<E extends ClientEvent> = (
   payload: ClientEventMap[E]
 ) => void;
 
-type PayloadEvent = "close" | "reconnect" | "error" | "warning";
+type PayloadEvent =
+  | "close"
+  | "reconnect"
+  | "error"
+  | "warning"
+  | "subscribed"
+  | "unsubscribed";
 
 /**
  * Routes inbound channel frames to channel handlers and connection lifecycle

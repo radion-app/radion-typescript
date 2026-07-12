@@ -108,7 +108,7 @@ const client = new RealtimeClient({ apiKey: process.env.RADION_API_KEY });
 | `unsubscribe(id)` | Unsubscribe by subscription id. |
 | `onChannel(channel, fn)` | Handle events on one channel; `event.data` is narrowed. Chainable. |
 | `onAnyChannel(fn)` | Handle every channel event (id + channel + data). Chainable. |
-| `onLifecycle(event, fn)` | Handle a lifecycle event (`open`/`close`/`reconnect`/`error`/`warning`). |
+| `onLifecycle(event, fn)` | Handle a lifecycle event (`open`/`close`/`reconnect`/`error`/`warning`/`subscribed`/`unsubscribed`). |
 | `offChannel(channel, fn?)` | Remove a channel handler (or all for the channel). Chainable. |
 | `offAnyChannel(fn?)` | Remove an all-channel handler (or all). Chainable. |
 | `offLifecycle(event, fn?)` | Remove a lifecycle handler (or all for the event). Chainable. |
@@ -133,6 +133,14 @@ radion.realtime.subscribe({
 
 // onAnyChannel fires for every channel; the event carries id + channel + data.
 radion.realtime.onAnyChannel((e) => console.log(e.id, e.channel, e.data));
+```
+
+Every event frame also carries `seq` and `sent_at_ms`. `seq` counts event frames on the connection (a jump means frames were dropped), and `sent_at_ms` is the server-send time in Unix ms, so server→client latency is `Date.now() - event.sent_at_ms`. Pending events keep `data.seen_at_ms` (block-detection time) for block→client latency.
+
+```ts
+radion.realtime.onAnyChannel((e) => {
+  console.log(`${Date.now() - e.sent_at_ms}ms behind the server`);
+});
 ```
 
 ### Channels

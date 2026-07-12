@@ -57,30 +57,36 @@ describe("v0.6.0 subscribe wire contract", () => {
   });
 });
 
-describe("v0.6.0 inbound frames", () => {
-  it("parses an event envelope carrying confirmed", () => {
+/** A valid pending-trade `data` payload for event-frame fixtures. */
+const pendingTradeData = () =>
+  pendingTransaction({
+    market_ids: ["0xabc"],
+    method: "fillOrder",
+    notional_usd: 1234.5,
+    orders: [
+      {
+        maker: "0x1",
+        maker_amount: "1000000",
+        side: "buy",
+        taker: null,
+        taker_amount: "500000",
+        token_id: "42",
+      },
+    ],
+    token_ids: ["42"],
+    wallets: ["0x1"],
+  });
+
+describe("v0.7.0 inbound frames", () => {
+  it("parses an event envelope carrying confirmed, seq and sent_at_ms", () => {
     const frame = parseInboundFrame(
       JSON.stringify({
         channel: "trading",
         confirmed: false,
-        data: pendingTransaction({
-          market_ids: ["0xabc"],
-          method: "fillOrder",
-          notional_usd: 1234.5,
-          orders: [
-            {
-              maker: "0x1",
-              maker_amount: "1000000",
-              side: "buy",
-              taker: null,
-              taker_amount: "500000",
-              token_id: "42",
-            },
-          ],
-          token_ids: ["42"],
-          wallets: ["0x1"],
-        }),
+        data: pendingTradeData(),
         id: "trading-pending",
+        sent_at_ms: 1_721_818_200_123,
+        seq: 42,
         type: "event",
       })
     );
@@ -88,7 +94,22 @@ describe("v0.6.0 inbound frames", () => {
     if (frame?.type === "event") {
       expect(frame.confirmed).toBe(false);
       expect(frame.channel).toBe("trading");
+      expect(frame.seq).toBe(42);
+      expect(frame.sent_at_ms).toBe(1_721_818_200_123);
     }
+  });
+
+  it("rejects an event envelope without seq and sent_at_ms", () => {
+    const frame = parseInboundFrame(
+      JSON.stringify({
+        channel: "trading",
+        confirmed: false,
+        data: pendingTradeData(),
+        id: "trading-pending",
+        type: "event",
+      })
+    );
+    expect(frame).toBeNull();
   });
 
   it("parses a subscribed ack that echoes confirmed", () => {

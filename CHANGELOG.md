@@ -2,6 +2,17 @@
 
 All notable changes to `@radion-app/sdk` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-07-12
+
+### Added
+
+- **`seq` and `sent_at_ms` on every event frame.** The server now stamps each `type: "event"` envelope with `sent_at_ms` (server-send time, Unix ms) and a per-connection monotonic `seq` counter. `ChannelEvent` exposes both as required fields: compute server→client latency as `receive time - sent_at_ms`, and detect dropped frames by a jump in `seq` (alongside the existing `lagged` error). Pending events still carry `data.seen_at_ms` for block→client latency.
+- **`subscribed` / `unsubscribed` lifecycle events.** Subscription acks are no longer swallowed: `onLifecycle("subscribed", (ack) => …)` fires with the `SubscriptionAck` (`id`, `channel`, `confirmed`) when the server confirms a subscribe, and `"unsubscribed"` mirrors it. Useful for tracking when a subscription is actually live (e.g. multiplexers and proxies).
+
+### Changed
+
+- **Requires a Radion API that emits the new envelope fields.** `parseInboundFrame` validates `seq` and `sent_at_ms` as required, so event frames from older servers are dropped as malformed.
+
 ## [0.6.0] - 2026-07-06
 
 ### Changed
