@@ -2,6 +2,16 @@
 
 All notable changes to `@radion-app/sdk` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-07-14
+
+### Added
+
+- **Webhook helpers.** A new `webhooks` surface for consuming Radion webhook deliveries, exported from the package root. `verifyWebhookSignature` authenticates a delivery: it checks the `X-Radion-Signature` header (`v1=` + hex HMAC-SHA256 over `{timestamp}.{body}`) against one or more secrets (pass both during a rotation window) with a constant-time WebCrypto verify, and rejects stale timestamps (`toleranceMs`, default 5 minutes — see `DEFAULT_WEBHOOK_TOLERANCE_MS`). `parseWebhookEvent` validates a raw body into a typed `WebhookEvent` — an alias of `ChannelEvent`, since webhook deliveries carry the same event frame as the WebSocket; `webhookEventSchema` is exported for composing. Runtime-agnostic: built on `globalThis.crypto.subtle` rather than `node:crypto`, so it works in Node.js 20+, browsers, Deno, Bun, and edge runtimes.
+
+### Changed
+
+- **BREAKING: requires Node.js 20+** (`engines.node >= 20`). The webhook helpers rely on the WebCrypto global (`globalThis.crypto`), which Node exposes unflagged from 20; Node 18 is end-of-life.
+
 ## [0.7.0] - 2026-07-12
 
 ### Added

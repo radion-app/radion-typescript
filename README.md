@@ -22,11 +22,12 @@ radion.realtime.onChannel("trading", (event) => console.log(event.data));
 - **Subscription restore** — active channels are re-subscribed after every reconnect
 - **Heartbeats** — ping/pong keep-alive that detects stale connections and reconnects
 - **Typed end-to-end** — channel names, inbound/outbound frames, and errors
+- **Webhook helpers** — verify delivery signatures and parse bodies into the same typed events, on any runtime with WebCrypto
 - **Tiny** — single dependency (`ws`), ESM + CJS, ships its own type definitions
 
 ## Requirements
 
-- Node.js >= 18
+- Node.js >= 20 (webhook helpers also run in any browser, Deno, Bun, or edge runtime)
 
 ## Install
 
@@ -235,6 +236,44 @@ On an unexpected disconnect the client reconnects with exponential backoff and r
 ### Heartbeats
 
 A ping is sent every `intervalMs`. Any inbound frame (pong or data) counts as liveness; if nothing arrives within `timeoutMs` the connection is treated as stale, terminated, and reconnected.
+
+### Webhooks
+
+Radion webhooks POST the same event frames as the WebSocket, signed with your endpoint's secret. The SDK ships standalone helpers to consume them — no client instance needed: `verifyWebhookSignature` checks the `X-Radion-Signature` HMAC (constant-time, with replay protection), and `parseWebhookEvent` validates the body into the same typed `ChannelEvent` the realtime client emits. Both are runtime-agnostic — they use WebCrypto, not `node:crypto`, so they run in Node.js 20+, browsers, Deno, Bun, and edge runtimes.
+
+```ts
+import { parseWebhookEvent, verifyWebhookSignature } from "@radion-app/sdk";
+
+export async function handler(request: Request): Promise<Response> {
+  const body = await request.text();
+
+  const authentic = await verifyWebhookSignature({
+    payload: body,
+    secret: process.env.RADION_WEBHOOK_SECRET, // whsec_…
+    signature: request.headers.get("x-radion-signature") ?? "",
+    timestamp: request.headers.get("x-radion-timestamp") ?? "",
+  });
+  if (!authentic) {
+    return new Response("invalid signature", { status: 401 });
+  }
+
+  const event = parseWebhookEvent(body);
+  if (event?.channel === "trading") {
+    console.log(event.seq, event.data);
+  }
+  return new Response("ok");
+}
+```
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `payload` | `string \| Uint8Array` | — | **Required.** Raw request body, exactly as received. |
+| `signature` | `string` | — | **Required.** The `X-Radion-Signature` header. |
+| `timestamp` | `number \| string` | — | **Required.** The `X-Radion-Timestamp` header (Unix ms). |
+| `secret` | `string \| string[]` | — | **Required.** Signing secret(s); pass both during a rotation window. |
+| `toleranceMs` | `number` | 5 minutes | Max delivery age before it is rejected as a replay. |
+
+Sign-related gotcha: verify over the **raw** body exactly as received — parse JSON only after the signature checks out. Deliveries are retried and unordered; deduplicate on `(id, seq)` or on fields of `data`.
 
 ### Error handling
 

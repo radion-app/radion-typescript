@@ -144,7 +144,11 @@ export interface ErrorFrame {
   skipped?: number;
 }
 
-const eventFrameSchema = z.object({
+/**
+ * Validates the structure of a `type: "event"` envelope — the frame delivered
+ * on the WebSocket and, identically, as a webhook POST body.
+ */
+export const eventFrameSchema = z.object({
   channel: z.string(),
   confirmed: z.boolean().optional(),
   data: channelDataSchema,
