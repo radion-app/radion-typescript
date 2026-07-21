@@ -44,19 +44,19 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "ws": "^8.21.0",
+    "ws": "^8.21.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "@types/ws": "^8.18.1",
     "lefthook": "^2.1.10",
-    "oxfmt": "^0.58.0",
-    "oxlint": "^1.73.0",
-    "oxlint-tsgolint": "^0.24.0",
-    "tsdown": "^0.22.5",
+    "oxfmt": "^0.59.0",
+    "oxlint": "^1.74.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "tsdown": "^0.22.12",
     "typescript": "^7.0.2",
-    "ultracite": "^7.9.3",
+    "ultracite": "^7.9.4",
     "vitest": "^4.1.10"
   },
   "engines": {
