@@ -21,6 +21,7 @@ radion.realtime.onChannel("trading", (event) => console.log(event.data));
 - **Auto-reconnect** — exponential backoff with jitter; stops on graceful shutdown
 - **Subscription restore** — active channels are re-subscribed after every reconnect
 - **Heartbeats** — ping/pong keep-alive that detects stale connections and reconnects
+- **Optional compression** — opt in to zlib frames to cut bandwidth on busy channels
 - **Typed end-to-end** — channel names, inbound/outbound frames, and errors
 - **Webhook helpers** — verify delivery signatures and parse bodies into the same typed events, on any runtime with WebCrypto
 - **Tiny** — single dependency (`ws`), ESM + CJS, ships its own type definitions
@@ -67,7 +68,7 @@ new Radion(options);
 | `apiKey` | `string` | — | **Required.** Sent as the `X-API-Key` header. |
 | `baseUrl` | `string` | `https://api.radion.app` | Base URL for the Radion API. |
 | `wsUrl` | `string` | `wss://api.radion.app/ws` | Override the realtime endpoint. |
-| `realtime` | `RealtimeOptions` | enabled | Reconnect / heartbeat tuning for the realtime client. |
+| `realtime` | `RealtimeOptions` | enabled | Reconnect / heartbeat / compression tuning for the realtime client. |
 
 ### Authentication
 
@@ -236,6 +237,19 @@ On an unexpected disconnect the client reconnects with exponential backoff and r
 ### Heartbeats
 
 A ping is sent every `intervalMs`. Any inbound frame (pong or data) counts as liveness; if nothing arrives within `timeoutMs` the connection is treated as stale, terminated, and reconnected.
+
+### Compression
+
+Set `compress: true` to ask the server for zlib-compressed frames. This is off by default, so nothing changes unless you opt in. It helps most on high-volume channels, where payloads shrink a lot.
+
+```ts
+const radion = new Radion({
+  apiKey: process.env.RADION_API_KEY,
+  realtime: { compress: true },
+});
+```
+
+The SDK adds `compress=zlib` to the WebSocket URL and inflates binary frames for you — `node:zlib` under Node, the native `DecompressionStream` in a browser. Uncompressed text frames are still accepted, so a mixed feed works fine. If a frame cannot be inflated, the client raises it on the `error` lifecycle event instead of dropping it.
 
 ### Webhooks
 

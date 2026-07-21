@@ -2,6 +2,12 @@
 
 All notable changes to `@radion-app/sdk` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-07-21
+
+### Added
+
+- **Opt-in zlib compression on the realtime feed.** Pass `compress: true` to `RealtimeClient` (or `realtime: { compress: true }` on `Radion`) and the SDK adds `compress=zlib` to the WebSocket URL, so the server sends frames as zlib-compressed binary. The client inflates them for you — `node:zlib` under Node (lazy-imported, so it stays out of browser bundles) and the native `DecompressionStream` in a browser, where the socket also switches to `binaryType: "arraybuffer"`. Uncompressed text frames are still accepted, so a mixed feed keeps working. A frame that fails to inflate is surfaced on the `error` lifecycle event, never dropped silently. Off by default, so existing clients are unaffected.
+
 ## [0.8.0] - 2026-07-14
 
 ### Added

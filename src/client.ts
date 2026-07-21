@@ -10,7 +10,7 @@ import type { RealtimeOptions } from "./realtime/client.js";
  * Extends {@link RadionConfig} with per-surface tuning.
  */
 export interface RadionOptions extends RadionConfig {
-  /** Tune the realtime client (reconnect / heartbeat). */
+  /** Tune the realtime client (reconnect / heartbeat / compression). */
   realtime?: Omit<RealtimeOptions, "apiKey" | "url">;
 }
 

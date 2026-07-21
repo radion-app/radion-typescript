@@ -26,3 +26,17 @@ describe("RealtimeClient auth wiring", () => {
     expect(getToken).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("RealtimeClient compression wiring", () => {
+  it("defaults compress to false", () => {
+    const client = new RealtimeClient({ apiKey: "k" });
+    // @ts-expect-error private field access for the test
+    expect(client.compress).toBe(false);
+  });
+
+  it("enables compression when opted in", () => {
+    const client = new RealtimeClient({ apiKey: "k", compress: true });
+    // @ts-expect-error private field access for the test
+    expect(client.compress).toBe(true);
+  });
+});

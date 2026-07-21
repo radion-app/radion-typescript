@@ -7,6 +7,7 @@ import {
 import { buildAuthQueryUrl, isBrowser, normalizeToken } from "./auth.js";
 import type { TokenInput } from "./auth.js";
 import type { SubscribableChannel } from "./channels.js";
+import { buildCompressQueryUrl } from "./compression.js";
 import { EventDispatcher } from "./event-dispatcher.js";
 import type {
   ChannelHandler,
@@ -79,6 +80,12 @@ export interface RealtimeOptions {
    * `false` under Node. Set explicitly to override.
    */
   authInQuery?: boolean;
+  /**
+   * Ask the server to send frames as zlib-compressed binary, saving bandwidth
+   * on busy channels. Defaults to `false`. Uncompressed text frames are still
+   * accepted, so the feed keeps working either way.
+   */
+  compress?: boolean;
 }
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed";
@@ -103,6 +110,7 @@ export class RealtimeClient {
   private readonly url: string;
   private readonly tokenProvider: (() => Promise<string>) | null;
   private readonly authInQuery: boolean;
+  private readonly compress: boolean;
   private readonly dispatcher = new EventDispatcher();
   private readonly subscriptions = new SubscriptionManager();
   private readonly reconnectManager: ReconnectManager | null;
@@ -125,6 +133,7 @@ export class RealtimeClient {
     this.url = options.url ?? DEFAULT_WS_URL;
     this.tokenProvider = normalizeToken(options.token);
     this.authInQuery = options.authInQuery ?? isBrowser();
+    this.compress = options.compress ?? false;
     this.reconnectManager =
       options.reconnect === false
         ? null
@@ -291,13 +300,15 @@ export class RealtimeClient {
     }
 
     const useQuery = this.authInQuery;
-    const url = useQuery
+    const authUrl = useQuery
       ? buildAuthQueryUrl(this.url, { apiKey: this.apiKey, token })
       : this.url;
+    const url = this.compress ? buildCompressQueryUrl(authUrl) : authUrl;
     const headers = useQuery ? undefined : this.buildAuthHeaders(token);
 
     try {
       this.socket = await createSocket(url, {
+        compress: this.compress,
         handlers: {
           onClose: (code, reason) => {
             this.handleClose(code, reason);
