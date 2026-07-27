@@ -2,6 +2,12 @@
 
 All notable changes to `@radion-app/sdk` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-07-27
+
+### Changed (Breaking)
+
+- **Realtime CLOB money fields are now strings.** On `clob.book`, `clob.prices`, `clob.last_trade`, `clob.midpoint`, and `clob.best_bid_ask`, the `price`, `size`, `best_bid`, `best_ask`, and `midpoint` fields are now `string` (decimal, e.g. `"0.61"`) instead of `number` — the payload schemas use `z.string()`. This matches the REST API and preserves full precision; the server always sent these as strings, so this fixes a client-side type mismatch. Keep the string and use the native `Decimal` type (TC39 stage 3) for math, or `Number(value)` for display.
+
 ## [0.9.0] - 2026-07-21
 
 ### Added

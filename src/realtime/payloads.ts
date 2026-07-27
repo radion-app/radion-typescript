@@ -403,14 +403,14 @@ export type MempoolPayload = z.infer<typeof mempoolPayloadSchema>;
  * The CLOB WebSocket family is a separate channel family. Unlike topic
  * channels, each CLOB channel has ONE fixed `data` shape with NO snake_case
  * `type` discriminator. Ids are strings (`asset_id` = U256 string, `market` =
- * `0x` hex string); prices/sizes/`timestamp` are numbers; `Option`al fields are
- * optional.
+ * `0x` hex string); prices and sizes are decimal strings (e.g. `"0.61"`),
+ * `timestamp` is a number; `Option`al fields are optional.
  */
 
 /** A single price level in a CLOB order book. */
 export const clobBookLevelSchema = z.looseObject({
-  price: z.number(),
-  size: z.number(),
+  price: z.string(),
+  size: z.string(),
 });
 export type ClobBookLevel = z.infer<typeof clobBookLevelSchema>;
 
@@ -427,10 +427,10 @@ export type ClobBookPayload = z.infer<typeof clobBookPayloadSchema>;
 /** A single asset's entry in a `clob.prices` update. */
 export const clobPriceChangeSchema = z.looseObject({
   asset_id: z.string(),
-  best_ask: z.number().optional(),
-  best_bid: z.number().optional(),
-  price: z.number(),
-  size: z.number().optional(),
+  best_ask: z.string().optional(),
+  best_bid: z.string().optional(),
+  price: z.string(),
+  size: z.string().optional(),
 });
 export type ClobPriceChange = z.infer<typeof clobPriceChangeSchema>;
 
@@ -446,8 +446,8 @@ export type ClobPricesPayload = z.infer<typeof clobPricesPayloadSchema>;
 export const clobLastTradePayloadSchema = z.looseObject({
   asset_id: z.string(),
   market: z.string(),
-  price: z.number(),
-  size: z.number().optional(),
+  price: z.string(),
+  size: z.string().optional(),
   timestamp: z.number(),
 });
 export type ClobLastTradePayload = z.infer<typeof clobLastTradePayloadSchema>;
@@ -456,7 +456,7 @@ export type ClobLastTradePayload = z.infer<typeof clobLastTradePayloadSchema>;
 export const clobMidpointPayloadSchema = z.looseObject({
   asset_id: z.string(),
   market: z.string(),
-  midpoint: z.number(),
+  midpoint: z.string(),
   timestamp: z.number(),
 });
 export type ClobMidpointPayload = z.infer<typeof clobMidpointPayloadSchema>;
@@ -472,8 +472,8 @@ export type ClobTickSizePayload = z.infer<typeof clobTickSizePayloadSchema>;
 /** `clob.best_bid_ask` — the top of book for an asset. */
 export const clobBestBidAskPayloadSchema = z.looseObject({
   asset_id: z.string(),
-  best_ask: z.number(),
-  best_bid: z.number(),
+  best_ask: z.string(),
+  best_bid: z.string(),
   market: z.string(),
   timestamp: z.number(),
 });
